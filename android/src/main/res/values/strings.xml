@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">DemPerm</string>
+    <string name="title_proposals">Proposals</string>
+    <string name="title_vote">Vote</string>
+    <string name="title_profile">Profile</string>
+    
+    <!-- Proposals -->
+    <string name="proposal_title">Proposal Title</string>
+    <string name="proposal_description">Description</string>
+    <string name="vote_yes">Yes</string>
+    <string name="vote_no">No</string>
+    <string name="vote_abstain">Abstain</string>
+    <string name="submit_vote">Submit Vote</string>
+    
+    <!-- Profile -->
+    <string name="username">Username</string>
+    <string name="email">Email</string>
+    <string name="login">Login</string>
+    <string name="logout">Logout</string>
+    <string name="register">Register</string>
+    
+    <!-- Common -->
+    <string name="loading">Loading...</string>
+    <string name="error_network">Network error. Please try again.</string>
+    <string name="error_generic">An error occurred. Please try again.</string>
+</resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/android-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_proposals">
+
+    <fragment
+        android:id="@+id/navigation_proposals"
+        android:name="com.demperm.android.ui.proposals.ProposalsFragment"
+        android:label="@string/title_proposals"
+        tools:layout="@layout/fragment_proposals" />
+
+    <fragment
+        android:id="@+id/navigation_vote"
+        android:name="com.demperm.android.ui.vote.VoteFragment"
+        android:label="@string/title_vote"
+        tools:layout="@layout/fragment_vote" />
+
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.demperm.android.ui.profile.ProfileFragment"
+        android:label="@string/title_profile"
+        tools:layout="@layout/fragment_profile" />
+</navigation>
