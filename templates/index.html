@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero-section bg-primary text-white py-5 mb-5 rounded">
+    <div class="container text-center">
+        <h1 class="display-4 mb-4">
+            <i class="fas fa-vote-yea me-3"></i>
+            Bienvenue dans la Démocratie Permanente
+        </h1>
+        <p class="lead mb-4">
+            Une plateforme innovante pour la participation citoyenne continue et la prise de décision collective.
+        </p>
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <a href="/proposals" class="btn btn-light btn-lg mb-2">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Voir les propositions
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/register" class="btn btn-outline-light btn-lg mb-2">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Rejoindre la communauté
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="/dashboard" class="btn btn-light btn-lg mb-2">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Tableau de bord
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Participation Citoyenne</h5>
+                <p class="card-text">
+                    Chaque citoyen peut proposer, débattre et voter sur les questions importantes qui concernent la communauté.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-balance-scale fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Transparence Totale</h5>
+                <p class="card-text">
+                    Tous les processus démocratiques sont transparents et traçables, garantissant l'intégrité du système.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Démocratie Continue</h5>
+                <p class="card-text">
+                    La démocratie ne s'arrête jamais. Participez en continu aux décisions qui façonnent votre société.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">Comment ça fonctionne ?</h2>
+    </div>
+    <div class="col-md-3 text-center mb-4">
+        <div class="bg-light p-4 rounded">
+            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="h4 mb-0">1</span>
+            </div>
+            <h5>Proposer</h5>
+            <p>Soumettez vos idées et propositions pour améliorer la société.</p>
+        </div>
+    </div>
+    <div class="col-md-3 text-center mb-4">
+        <div class="bg-light p-4 rounded">
+            <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="h4 mb-0">2</span>
+            </div>
+            <h5>Débattre</h5>
+            <p>Participez aux discussions constructives pour enrichir les propositions.</p>
+        </div>
+    </div>
+    <div class="col-md-3 text-center mb-4">
+        <div class="bg-light p-4 rounded">
+            <div class="bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="h4 mb-0">3</span>
+            </div>
+            <h5>Voter</h5>
+            <p>Exprimez votre opinion par le vote sur les propositions finalisées.</p>
+        </div>
+    </div>
+    <div class="col-md-3 text-center mb-4">
+        <div class="bg-light p-4 rounded">
+            <div class="bg-warning text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="h4 mb-0">4</span>
+            </div>
+            <h5>Implémenter</h5>
+            <p>Les décisions prises sont mises en œuvre de manière transparente.</p>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-5">
+    <h4 class="alert-heading">
+        <i class="fas fa-info-circle me-2"></i>
+        Première visite ?
+    </h4>
+    <p>
+        Créez votre compte pour commencer à participer à la démocratie permanente. 
+        Votre voix compte et chaque participation contribue à construire une société plus juste et participative.
+    </p>
+    <hr>
+    <a href="/register" class="btn btn-primary">
+        <i class="fas fa-arrow-right me-2"></i>
+        Commencer maintenant
+    </a>
+</div>
+{% endblock %}

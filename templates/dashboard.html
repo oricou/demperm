@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Démocratie Permanente{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-chart-bar me-2"></i>
+        Tableau de bord
+    </h1>
+    <div>
+        <a href="/proposals/new" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Nouvelle proposition
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h3 class="card-title">{{ stats.total_users }}</h3>
+                        <p class="card-text">Citoyens inscrits</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h3 class="card-title">{{ stats.active_proposals }}</h3>
+                        <p class="card-text">Propositions actives</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-lightbulb fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h3 class="card-title">{{ stats.total_votes }}</h3>
+                        <p class="card-text">Votes exprimés</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-vote-yea fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h3 class="card-title">{{ (stats.total_votes / stats.total_users * 100)|round(1) if stats.total_users > 0 else 0 }}%</h3>
+                        <p class="card-text">Taux de participation</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-pie fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Proposals -->
+<div class="row">
+    <div class="col-12">
+        <h3 class="mb-4">
+            <i class="fas fa-clock me-2"></i>
+            Propositions récentes
+        </h3>
+        
+        {% if stats.recent_proposals %}
+        <div class="row">
+            {% for proposal in stats.recent_proposals %}
+            <div class="col-md-6 mb-4">
+                <div class="card proposal-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title">{{ proposal.title }}</h5>
+                            <span class="badge 
+                                {% if proposal.status == 'draft' %}bg-secondary{% endif %}
+                                {% if proposal.status == 'discussion' %}bg-primary{% endif %}
+                                {% if proposal.status == 'voting' %}bg-success{% endif %}
+                                {% if proposal.status == 'closed' %}bg-dark{% endif %}
+                                {% if proposal.status == 'implemented' %}bg-info{% endif %}
+                                {% if proposal.status == 'rejected' %}bg-danger{% endif %}
+                                status-badge">
+                                {{ proposal.status|title }}
+                            </span>
+                        </div>
+                        <p class="card-text">{{ proposal.description[:150] }}{% if proposal.description|length > 150 %}...{% endif %}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>
+                                {{ proposal.author.full_name or proposal.author.username }}
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ proposal.created_at.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
+                        <div class="mt-3">
+                            <a href="/proposals/{{ proposal.id }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>
+                                Voir détails
+                            </a>
+                            {% if proposal.status == 'voting' %}
+                            <a href="/proposals/{{ proposal.id }}/vote" class="btn btn-success btn-sm">
+                                <i class="fas fa-vote-yea me-1"></i>
+                                Voter
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="/proposals" class="btn btn-primary">
+                <i class="fas fa-list me-2"></i>
+                Voir toutes les propositions
+            </a>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">Aucune proposition récente</h4>
+            <p class="text-muted">Soyez le premier à proposer quelque chose !</p>
+            <a href="/proposals/new" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                Créer une proposition
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3 class="mb-4">
+            <i class="fas fa-bolt me-2"></i>
+            Actions rapides
+        </h3>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <a href="/proposals/new" class="card text-decoration-none h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-plus fa-2x text-primary mb-3"></i>
+                        <h5 class="card-title">Nouvelle proposition</h5>
+                        <p class="card-text text-muted">Soumettez une nouvelle idée à la communauté</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4 mb-3">
+                <a href="/proposals?status=voting" class="card text-decoration-none h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-vote-yea fa-2x text-success mb-3"></i>
+                        <h5 class="card-title">Voter</h5>
+                        <p class="card-text text-muted">Participez aux votes en cours</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4 mb-3">
+                <a href="/proposals?status=discussion" class="card text-decoration-none h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-comments fa-2x text-info mb-3"></i>
+                        <h5 class="card-title">Débattre</h5>
+                        <p class="card-text text-muted">Participez aux discussions en cours</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

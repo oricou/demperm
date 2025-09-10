@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy<1.5
+alembic
+python-multipart
+jinja2
+python-jose[cryptography]
+passlib[bcrypt]
+python-decouple
