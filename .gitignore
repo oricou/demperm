@@ -205,3 +205,33 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# iOS
+.DS_Store
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+ios-client/.build/
+
+# CocoaPods
+ios-client/Pods/
+
+# Carthage
+ios-client/Carthage/Build/
+
+# Swift Package Manager
+ios-client/.swiftpm/
+ios-client/Package.resolved
