@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <h2>Démocratie Permanente</h2>
+    <p>Participez aux décisions démocratiques en cours</p>
+</section>
+
+<section class="proposals">
+    <h3>Propositions Actuelles</h3>
+    
+    {% if proposals %}
+        {% for proposal in proposals %}
+            <div class="proposal-card">
+                <h4>{{ proposal.title }}</h4>
+                <p>{{ proposal.description }}</p>
+                
+                {% if proposal.id in votes %}
+                    <div class="vote-results">
+                        <h5>Résultats du vote:</h5>
+                        <div class="vote-stats">
+                            <span class="vote-yes">Pour: {{ votes[proposal.id].yes }}</span>
+                            <span class="vote-no">Contre: {{ votes[proposal.id].no }}</span>
+                            <span class="vote-abstain">Abstention: {{ votes[proposal.id].abstain }}</span>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <form method="POST" action="{{ url_for('vote', proposal_id=proposal.id) }}" class="vote-form">
+                    <div class="vote-options">
+                        <label>
+                            <input type="radio" name="vote" value="yes" required>
+                            Pour
+                        </label>
+                        <label>
+                            <input type="radio" name="vote" value="no" required>
+                            Contre
+                        </label>
+                        <label>
+                            <input type="radio" name="vote" value="abstain" required>
+                            Abstention
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Voter</button>
+                </form>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-proposals">
+            <p>Aucune proposition active pour le moment.</p>
+            <a href="{{ url_for('propose') }}" class="btn btn-primary">Créer une proposition</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
