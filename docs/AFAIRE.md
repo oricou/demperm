@@ -38,9 +38,9 @@ Présentation de 10 mn pour chaque groupe. Déposer la présentation sur le dép
 
 La semaine prochaine on  écoutera les présentations des différents clients qui nous monterons le rendu visé des diffŕentes fonctionnalités (dessins à la main autorisés). Un grand bravo à l'équipe iOS pour sa maquette.
 
-## Doc
+## Documentation
 
-Il faut aussi penser à mettre tout vos documents sur le GitHub. Pour chaque groupe je m'attends à avoir un sous-répertoire `src`, `doc` et pour les serveurs `doc/api`.
+Il faut aussi penser à mettre tout vos documents sur le GitHub. `docs` pour les docs et `src` pour le code.
 
 ## Protocole
 
