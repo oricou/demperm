@@ -1,6 +1,5 @@
 name: Tests Serveur Vote
 
-
 on:
   push:
     branches: ["**"]
