@@ -27,7 +27,7 @@ jobs:
           NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
 
     env:
-      NEO4J_URI: bolt://localhost:7687   # ⬅️ important
+      NEO4J_URI: bolt://localhost:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password
 
@@ -69,5 +69,10 @@ jobs:
           EOF
 
       - name: Run pytest
+        if: ${{ hashFiles('src/serveur/vote/**/*.py') != '' }}
         working-directory: src/serveur/vote
-        run: pytest -q
+        run: pytest -vv
+
+      - name: Skip (no tests found)
+        if: ${{ hashFiles('src/serveur/vote/**/*.py') == '' }}
+        run: echo "No Python files in src/serveur/vote — skipping pytest."
