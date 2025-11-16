@@ -59,6 +59,7 @@ demperm/src/client/web/
 │ │ ├── security/
 │ │ └── types/
 │ └── tests/
+│   ├── mock/
 │   ├── unit/
 │   └── e2e/
 ├── .env
