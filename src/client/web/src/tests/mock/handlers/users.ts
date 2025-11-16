@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import users from '../data/users.json'
+import { mockConfig } from '../config'
 
 /**
  * Mock handlers for user profile related endpoints.

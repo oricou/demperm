@@ -1,67 +1,88 @@
 import { http, HttpResponse } from 'msw'
 import { mockConfig } from '../config'
 
-// Data files (first version: keep them small and simple)
-import data from '../data/receivedVotes.json' as receivedVotes
-import data from '../data/emittedVotes.json' as emittedVotes
-import data from '../data/dailyVotes.json' as dailyVotes
-import data from '../data/results.json' as results
-import data from '../data/domains.json' as domains
+// Data files
+import receivedVotes from '../data/receivedVotes.json'
+import emittedVotes from '../data/emittedVotes.json'
+import dailyVotes from '../data/dailyVotes.json'
+import results from '../data/results.json'
+import domains from '../data/domains.json'
 
 /**
- * Multi-endpoint mock for the dashboard.
- * This corresponds to:
- *  - Votes received by the user
- *  - Votes emitted by the user
- *  - Daily evolution / charts
- *  - Global or domain results
- *  - Domain information (mock-side extra)
- *
- * These endpoints should be queried independently by the frontend
- * and composed together to render the dashboard.
+ * Mock handlers for all dashboard-related endpoints.
+ * Each endpoint includes its own authorization check
+ * because MSW v2 does NOT support middleware like "next()".
  */
 
 export const dashboardHandlers = [
-  
-  // Helper for auth check
-  http.all('*', async ({ request }, next) => {
+
+  // Votes received by the authenticated user
+  http.get('/votes/for-user/me', ({ request }) => {
     if (!mockConfig.enableDashboard) {
       return HttpResponse.json({ error: 'Dashboard disabled' }, { status: 503 })
     }
 
-    // We expect a token in the Authorization header
     const auth = request.headers.get('Authorization')
-
     if (!auth) {
       return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return next()
-  }),
-
-  // Votes received by the authenticated user
-  http.get('/votes/for-user/me', () => {
     return HttpResponse.json(receivedVotes)
   }),
 
   // Votes emitted by the authenticated user
-  http.get('/votes/by-voter/me', () => {
+  http.get('/votes/by-voter/me', ({ request }) => {
+    if (!mockConfig.enableDashboard) {
+      return HttpResponse.json({ error: 'Dashboard disabled' }, { status: 503 })
+    }
+
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return HttpResponse.json(emittedVotes)
   }),
 
   // Daily vote evolution (dashboard charts)
-  http.get('/stats/votes/daily/me', () => {
+  http.get('/stats/votes/daily/:id', ({ request }) => {
+    if (!mockConfig.enableDashboard) {
+      return HttpResponse.json({ error: 'Dashboard disabled' }, { status: 503 })
+    }
+
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return HttpResponse.json(dailyVotes)
   }),
 
   // Global or domain results (top users)
-  http.get('/results', () => {
+  http.get('/results', ({ request }) => {
+    if (!mockConfig.enableDashboard) {
+      return HttpResponse.json({ error: 'Dashboard disabled' }, { status: 503 })
+    }
+
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return HttpResponse.json(results)
   }),
 
   // Domain list (mock-only, not defined in swagger)
-  // Helps UI attach labels, icons, descriptions
-  http.get('/domains', () => {
+  http.get('/domains', ({ request }) => {
+    if (!mockConfig.enableDashboard) {
+      return HttpResponse.json({ error: 'Dashboard disabled' }, { status: 503 })
+    }
+
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return HttpResponse.json(domains)
   })
 ]

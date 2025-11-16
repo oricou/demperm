@@ -8,7 +8,7 @@ import { mockConfig } from '../config'
  */
 export const forumHandlers = [
 
-  http.get('/forum', () => {
+  http.get('/forums', ({ request }) => {
     if (!mockConfig.enableForums) {
       return HttpResponse.json({ error: 'Forums disabled' }, { status: 503 })
     }
@@ -21,9 +21,9 @@ export const forumHandlers = [
     }
 
     return HttpResponse.json(data)
-  })
+  }),
 
-  http.get('/forum/{id}', () => {
+  http.get('/forums/:id', ({ request, params }) => {
     if (!mockConfig.enableForums) {
       return HttpResponse.json({ error: 'Forums disabled' }, { status: 503 })
     }
@@ -42,5 +42,5 @@ export const forumHandlers = [
       return HttpResponse.json({ error: 'Forum not found' }, { status: 404 })
     }
 
-    return HttpResponse.json(data)
-]
+    return HttpResponse.json(forum)
+})]

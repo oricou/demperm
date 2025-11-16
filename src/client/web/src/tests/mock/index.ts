@@ -4,8 +4,8 @@ import { setupWorker } from 'msw/browser'
 import { authHandlers } from './handlers/auth'
 import { userHandlers } from './handlers/users'
 import { dashboardHandlers } from './handlers/dashboard'
-import { communityHandlers } from './handlers/communities'
-import { chatHandlers } from './handlers/chats'
+import { forumHandlers } from './handlers/forums'
+import { messageHandlers } from './handlers/messages'
 
 /**
  * The MSW (Mock Service Worker) instance.
@@ -16,8 +16,8 @@ export const worker = setupWorker(
   ...authHandlers,
   ...userHandlers,
   ...dashboardHandlers,
-  ...communityHandlers,
-  ...chatHandlers
+  ...forumHandlers,
+  ...messageHandlers
 )
 
 // The worker only runs in development mode.

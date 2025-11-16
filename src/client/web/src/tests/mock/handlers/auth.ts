@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import users from '../data/users.json'
 import { mockConfig } from '../config'
+import { logHttpError } from "../../../shared/utils/httpErrorLog";
 
 /**
  * Mock handlers for authentication.
@@ -23,6 +24,7 @@ export const authHandlers = [
 
     // Wrong credentials
     if (!user) {
+      logHttpError(401);
       return HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
