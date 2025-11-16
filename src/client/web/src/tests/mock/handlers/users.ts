@@ -8,6 +8,11 @@ import users from '../data/users.json'
 export const userHandlers = [
 
   http.get('/users/me', ({ request }) => {
+    // Feature disabled → simulate maintenance mode
+    if (!mockConfig.enableUserProfile) {
+      return HttpResponse.json({ error: 'Profile disabled' }, { status: 503 })
+    }
+
     // We expect a token in the Authorization header
     const auth = request.headers.get('Authorization')
 

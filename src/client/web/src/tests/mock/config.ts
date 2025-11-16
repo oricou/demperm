@@ -5,7 +5,8 @@
  */
 export const mockConfig = {
   enableAuth: true,
+  enableUSerProfile: true,
   enableDashboard: true,
   enableCommunities: true,
-  enableChats: true,
+  enableMessages: true,
 }

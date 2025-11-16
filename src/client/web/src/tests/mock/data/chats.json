@@ -1,9 +1,0 @@
-[
-  {
-    "id": "1",
-    "with": "Bob",
-    "messages": [
-      { "from": "Alice", "content": "Hello!" }
-    ]
-  }
-]
