@@ -72,7 +72,3 @@ jobs:
         if: ${{ hashFiles('src/serveur/vote/**/*.py') != '' }}
         working-directory: src/serveur/vote
         run: pytest -vv
-
-      - name: Skip (no tests found)
-        if: ${{ hashFiles('src/serveur/vote/**/*.py') == '' }}
-        run: echo "No Python files in src/serveur/vote — skipping pytest."
