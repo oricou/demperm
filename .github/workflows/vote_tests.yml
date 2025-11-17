@@ -1,11 +1,8 @@
 name: Tests Serveur Vote
 
+
 on:
   push:
-    branches: ["**"]
-    paths:
-      - "src/serveur/vote/**"
-  pull_request:
     paths:
       - "src/serveur/vote/**"
 
