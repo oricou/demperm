@@ -1,0 +1,4 @@
+[
+  { "userId": "u123", "domain": "dom_01", "count": 120, "elected": true },
+  { "userId": "u908", "domain": "dom_03", "count": 98, "elected": false }
+]
