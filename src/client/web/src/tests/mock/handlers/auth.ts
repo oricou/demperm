@@ -3,6 +3,8 @@ import users from '../data/users.json'
 import { mockConfig } from '../config'
 import { logHttpError } from "../../../shared/utils/httpErrorLog";
 
+
+
 /**
  * Mock handlers for authentication.
  * These define how the mock server should respond to login requests.
@@ -15,7 +17,7 @@ export const authHandlers = [
       return HttpResponse.json({ error: 'Auth disabled' }, { status: 503 })
     }
 
-    const { username, password } = await request.json()
+    const { username, password } = (await request.json()) as { username: string; password: string } //need to be adapt to parse automatically the request safely
 
     // Find user in mock database
     const user = users.find(
