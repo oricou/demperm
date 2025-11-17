@@ -4,9 +4,9 @@ class VoteRepository:
     """
     Persistance des votes dans Neo4j.
 
-    Modèle simple :
+    Modèle :
       (voter:User {id})
-          -[:VOTED {id, createdAt, domain}]->
+          -[:VOTED {id, createdAt, domain, count}]->
       (target:User {id})
     """
 
@@ -32,11 +32,23 @@ class VoteRepository:
             MERGE (voter:User {id: $voterId})
             MERGE (target:User {id: $targetUserId})
 
-            CREATE (voter)-[:VOTED {
-                id: $id,
-                domain: $domain,
-                createdAt: datetime($createdAt)
-            }]->(target)
+            WITH voter, target
+
+            OPTIONAL MATCH (voter)<-[incoming:VOTED]-()
+            WITH voter, target,
+                 CASE
+                    WHEN coalesce(sum(incoming.count), 0) = 0
+                    THEN 1
+                    ELSE coalesce(sum(incoming.count), 0)
+                 END AS voteWeight
+
+            MERGE (voter)-[rel:VOTED {domain: $domain}]->(target)
+            ON CREATE SET
+                rel.id        = $id,
+                rel.createdAt = datetime($createdAt),
+                rel.count     = voteWeight
+            ON MATCH SET
+                rel.count     = rel.count + voteWeight
             """,
             id=str(vote["id"]),
             voterId=str(vote["voterId"]),
