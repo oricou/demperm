@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.urls import path
 from api.vote_controller import VoteView
+from api.publication_controller import PublicationSettingView
 
 urlpatterns = [
     path("votes", VoteView.as_view(), name="create_vote"),
+    path("publication/<str:userId>", PublicationSettingView.as_view(), name="publication_setting"),
 ]
