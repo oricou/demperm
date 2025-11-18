@@ -1,0 +1,34 @@
+import { Image } from 'expo-image';
+import { Platform, StyleSheet } from 'react-native';
+
+import { Collapsible } from '@/components/ui/collapsible';
+import { ExternalLink } from '@/components/external-link';
+import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { Link } from 'expo-router';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors, Spacing } from '@/constants/theme';
+import { ThemeDemo } from '@/components/theme-demo';
+import {HelloWave} from "@/components/hello-wave";
+
+export default function CreateForumScreen() {
+    return (
+        <ParallaxScrollView
+            headerBackgroundColor={{ light: Colors.light.primary, dark: Colors.dark.primary }}>
+            <ThemedView style={styles.titleContainer}>
+                <Link href="/(tabs)/forums/myForums">
+                    <ThemedText type="link">Retour</ThemedText>
+                </Link>
+                <ThemedText type="screenTitle">Créer un forum</ThemedText>
+            </ThemedView>
+        </ParallaxScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    titleContainer: {
+        flexDirection: 'row',
+        gap: Spacing.margin,
+    },
+});
