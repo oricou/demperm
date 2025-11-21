@@ -1,17 +1,37 @@
-import Login from "./app/auth/login";
-import "./App.css";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import './App.css'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import Login from './app/auth/login'
+import { AppShell } from './components/layout/AppShell'
+import ProfileSelfPage from './app/social/dashboard/page'
+import PublicProfilePage from './app/social/users/id'
+import VoteDashboardPage from './app/vote/page'
+import ForumHomePage from './app/social/groups'
+import MessagesPage from './app/social/mailbox'
+
+function AppLayout() {
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  )
+}
 
 function App() {
   return (
-    <>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />}></Route>
-        </Routes>
-      </BrowserRouter>
-    </>
-  );
+    <Routes>
+      <Route path="/" element={<Navigate to="/profil" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/login" element={<Login />} />
+      <Route element={<AppLayout />}>
+        <Route path="/profil" element={<ProfileSelfPage />} />
+        <Route path="/profil/public" element={<PublicProfilePage />} />
+        <Route path="/vote" element={<VoteDashboardPage />} />
+        <Route path="/forum" element={<ForumHomePage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/profil" replace />} />
+    </Routes>
+  )
 }
 
-export default App;
+export default App
