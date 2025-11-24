@@ -352,11 +352,7 @@ class VoteRepository:
         # trie par date, conserve le plus récent et supprime les autres.
         tx.run(
             """
-<<<<<<< HEAD
             MATCH (voter:User)-[v:VOTED {processed: false}]->(:User)
-=======
-            MATCH (voter:User)-[v:VOTED]->(:User)
->>>>>>> e7d01c2 (feat(vote-validation): finish vote validation)
             WITH voter, v.domain AS domain, collect(v) AS votes
 
             WHERE size(votes) > 1
