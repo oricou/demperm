@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "createdoc": "jsdoc src -r -d ../../../docs/client/web/docs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,8 +30,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "postcss": "^8.4.38",
+    "jsdoc": "^4.0.5",
     "msw": "^2.12.2",
+    "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "vite": "^7.2.2"
   },
