@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "api",
     "core",
+    "django_crontab",
 ]
 
 MIDDLEWARE = [
@@ -132,3 +133,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CRONJOBS = [
+    ('0 1 * * *', 'app.cron.process_daily_votes'),
+]
