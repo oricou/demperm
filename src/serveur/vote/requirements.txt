@@ -1,0 +1,4 @@
+django
+djangorestframework
+neo4j
+pytest

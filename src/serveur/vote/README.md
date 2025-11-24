@@ -148,13 +148,13 @@ Tests unitaires et d’intégration :
 
 ## 🚀 Technologies utilisées
 
-| Élément | Technologie / Outil | Description |
-|----------|-----------|-------------|
-| **Base de données** | Neo4J | Modélisation orientée graphe, idéale pour représenter les relations entre votants et domaines |
-| **Framework API** | Django | Permet de créer des endpoints REST facilement |
-| **Documentation API** | Swagger | Génération automatique et interactive de la documentation REST |
-| **Architecture** | Micro-services | Découpage logique, indépendant et maintenable |
-| **CI/CD** | GitHub Actions | Intégration continue, tests automatisés, déploiement simplifié |
+| Élément               | Technologie / Outil | Description                                                                                   |
+|-----------------------|---------------------|-----------------------------------------------------------------------------------------------|
+| **Base de données**   | Neo4J               | Modélisation orientée graphe, idéale pour représenter les relations entre votants et domaines |
+| **Framework API**     | Django              | Permet de créer des endpoints REST facilement                                                 |
+| **Documentation API** | Swagger             | Génération automatique et interactive de la documentation REST                                |
+| **Architecture**      | Micro-services      | Découpage logique, indépendant et maintenable                                                 |
+| **CI/CD**             | GitHub Actions      | Intégration continue, tests automatisés, déploiement simplifié                                |
 ---
 
 ## En résumé
