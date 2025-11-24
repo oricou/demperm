@@ -1,0 +1,9 @@
+{
+  "userId": "1",
+  "total": 42,
+  "byDomain": {
+    "culture": 12,
+    "transport": 7,
+    "education": 23
+  }
+}

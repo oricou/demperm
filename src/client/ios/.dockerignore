@@ -1,0 +1,41 @@
+# Dépendances
+node_modules
+npm-debug.log
+
+# Build
+dist
+.expo
+.expo-shared
+
+# Tests
+coverage
+.vitest
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+docs
+README.md
+
+# Android
+android/build
+android/.gradle
+android/app/build
+
+# Autres
+*.log
+.env
+.env.local
