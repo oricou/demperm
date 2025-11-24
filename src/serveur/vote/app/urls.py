@@ -23,6 +23,7 @@ from api.vote_controller import (
     VotesForUserMeView,
 )
 from api.publication_controller import PublicationSettingView
+from api.result_controller import ResultView
 from api.threshold_controller import ThresholdSettingView
 
 urlpatterns = [
@@ -36,6 +37,7 @@ urlpatterns = [
     path("votes/for-user/<str:userId>", VotesForUserView.as_view(), name="votes_for_user"),
 
     path("publication/<str:userId>", PublicationSettingView.as_view(), name="publication_setting"),
+    path("results", ResultView.as_view(), name="get_results"),
     path("threshold/<str:userId>", ThresholdSettingView.as_view(), name="threshold_setting"),
 ]
 
