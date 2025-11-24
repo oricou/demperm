@@ -17,8 +17,10 @@ Including another URLconf
 from django.urls import path
 from api.vote_controller import VoteView
 from api.publication_controller import PublicationSettingView
+from api.threshold_controller import ThresholdSettingView
 
 urlpatterns = [
     path("votes", VoteView.as_view(), name="create_vote"),
     path("publication/<str:userId>", PublicationSettingView.as_view(), name="publication_setting"),
+    path("threshold/<str:userId>", ThresholdSettingView.as_view(), name="threshold_setting"),
 ]
