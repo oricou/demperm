@@ -1,6 +1,5 @@
 import random
 from db.repository.vote_repository import VoteRepository
-from core.services.vote_service import VoteService
 
 class VoteValidationService:
     @staticmethod
@@ -15,7 +14,7 @@ class VoteValidationService:
         """
         
         # Supprimer ou réinitialiser les votes précédents (logique métier externe)
-        VoteService.remove_previous_votes()
+        VoteValidationService.remove_previous_votes()
 
         # Récupérer la liste des relations VOTED non encore traitées
         vote_ids = VoteRepository.fetch_unprocessed_votes()
@@ -27,18 +26,50 @@ class VoteValidationService:
         # Mélanger les IDs pour éviter un biais d'ordre
         random.shuffle(vote_ids)
         # Déterminer le nombre de votes à valider (80 %)
-        cutoff = int(len(vote_ids) * 0.8)
+        cutoff = int(len(vote_ids) * 0.8) + 1
 
         # Séparer les votes validés et rejetés
         validated = vote_ids[:cutoff]
         rejected = vote_ids[cutoff:]
 
-        # TODO: ajouter la logique de validité d'un vote sur validated
-
-        # Marquer les votes validés dans la base
-        if validated:
-            VoteRepository.mark_votes_valid(validated)
+        # Logique de validation des votes de validated
+        for vote_id in validated:
+            if not VoteValidationService.validate_vote(vote_id):
+                rejected.append(vote_id)
 
         # Marquer les votes rejetés dans la base
         if rejected:
             VoteRepository.mark_votes_invalid(rejected)
+
+    @staticmethod
+    def remove_previous_votes():
+        """
+        Supprime les votes en double par domaine, puis recalcule les poids des votes.
+        
+        Étapes :  
+        1. Supprime les relations VOTED en doublon pour chaque utilisateur et chaque domaine.  
+        2. Recalcule les poids (`count`) et marque les cycles (`cycle`) pour tous les votes valides  
+           via le recalcul par domaine dans GDS.  
+        """
+        VoteRepository.clean_duplicate_domain_votes()
+
+        VoteRepository.recalculate_counts_by_domain()
+    
+    @staticmethod
+    def validate_vote(vote_id):
+        """
+        Valide un vote en vérifiant sa légitimité selon les seuils et les relations.
+
+        :param vote_id: l’ID (elementId) de la relation VOTED à valider  
+        :return: True si le vote est validé (processed = true et valid = true), False si invalidé  
+        """ 
+        (count, relIds, cycle) = VoteRepository.check_vote_validity(vote_id)
+
+        if (count == -1):
+            return False
+        
+        VoteRepository.mark_vote_valid(vote_id)
+        VoteRepository.update_counts(vote_id, count, relIds, cycle)
+        
+        return True
+        

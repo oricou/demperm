@@ -82,7 +82,7 @@ class VoteRepository:
         # Sélectionne toutes les relations VOTED non encore traitées
         results = tx.run(
             """
-            MATCH ()-[v:VOTED]-()
+            MATCH (:User)-[v:VOTED]->(:User)
             WHERE coalesce(v.processed, false) = false
             RETURN elementId(v) as relId
             """
@@ -92,31 +92,31 @@ class VoteRepository:
         return [row["relId"] for row in results]
 
 
-    # -------------------- MARQUAGE DES VOTES VALIDES --------------------
+    # -------------------- MARQUAGE D'UN VOTE VALIDE --------------------
 
     @staticmethod
-    def mark_votes_valid(rel_ids: list):
+    def mark_vote_valid(rel_id):
         """
-        Marque une liste de relations VOTED comme validées :
+        Marque une relation VOTED comme validée :
         processed = true et valid = true.
         """
         driver = get_driver()
         with driver.session() as session:
             session.execute_write(
-                VoteRepository._mark_votes_valid_tx, rel_ids
+                VoteRepository._mark_vote_valid_tx, rel_id
             )
 
     @staticmethod
-    def _mark_votes_valid_tx(tx, rel_ids):
+    def _mark_vote_valid_tx(tx, rel_id):
         # Met à jour les propriétés processed et valid sur les relations
         tx.run(
             """
-            MATCH ()-[v]-()
-            WHERE elementId(v) IN $ids
+            MATCH (:User)-[v:VOTED]->(:User)
+            WHERE elementId(v) = $id
             SET v.processed = true,
                 v.valid = true
             """,
-            ids=rel_ids,
+            id=rel_id,
         )
 
 
@@ -139,7 +139,7 @@ class VoteRepository:
         # Même logique que mark_votes_valid, mais valid = false
         tx.run(
             """
-            MATCH ()-[v]-()
+            MATCH (:User)-[v:VOTED]->(:User)
             WHERE elementId(v) IN $ids
             SET v.processed = true,
                 v.valid = false
@@ -167,7 +167,7 @@ class VoteRepository:
         # trie par date, conserve le plus récent et supprime les autres.
         tx.run(
             """
-            MATCH (voter:User)-[v:VOTED]->()
+            MATCH (voter:User)-[v:VOTED]->(:User)
             WITH voter, v.domain AS domain, collect(v) AS votes
 
             WHERE size(votes) > 1
@@ -210,13 +210,13 @@ class VoteRepository:
     def _setup_recalculation_by_domain_tx(tx):
         # 1. Remise à zéro des propriétés `count` et `cycle` de toutes les relations VOTED
         tx.run("""
-            MATCH ()-[r:VOTED]->()
+            MATCH (:User)-[r:VOTED]->(:User)
             WHERE r.valid = true
             SET r.count = null, r.cycle = false
         """)
 
         # 2. Collecte de tous les domaines présents dans les relations VOTED
-        result = tx.run("MATCH ()-[r:VOTED]->() RETURN DISTINCT r.domain AS domain")
+        result = tx.run("MATCH ()-[r:VOTED]->() WHERE r.valid = true RETURN DISTINCT r.domain AS domain")
         domains = [record["domain"] for record in result]
 
         # 3. Projection du graphe global dans GDS avec toutes les relations VOTED
@@ -292,7 +292,7 @@ class VoteRepository:
             businessId = rec["businessId"]
             incoming_rec = tx.run(
                 """
-                MATCH (src:User)-[inR:VOTED]->(u)
+                MATCH (src:User)-[inR:VOTED]->(u:User)
                 WHERE u.id = $businessId
                 AND inR.cycle = false
                 AND inR.domain = $domain
@@ -306,7 +306,7 @@ class VoteRepository:
 
             tx.run(
                 """
-                MATCH (u:User)-[outR:VOTED]->(v)
+                MATCH (u:User)-[outR:VOTED]->(v:User)
                 WHERE u.id = $businessId
                 AND outR.cycle = false
                 AND outR.domain = $domain
@@ -379,3 +379,183 @@ class VoteRepository:
     def _cleanup_recalculation_by_domain_tx(tx):
         # Supprime le graphe global projeté dans GDS
         tx.run("CALL gds.graph.drop('myGraph') YIELD graphName")
+    
+
+    # -------------------- VERIFICATION DE LA VALIDITE D'UN VOTE --------------------
+    
+    @staticmethod
+    def check_vote_validity(rel_id):
+        """
+        Vérifie si un vote (relation VOTED) est valide selon la logique de seuil et de cycle.
+
+        :param rel_id: elementId() de la relation VOTED à vérifier
+        :return: un tuple (count, relIds, cycle) :
+                - count : le poids à attribuer si le vote est valide, ou -1 si invalidé  
+                - relIds : la liste des elementId() des relations sur le chemin concerné  
+                - cycle : booléen indiquant si le vote forme un cycle
+        """
+        driver = get_driver()
+        with driver.session() as session:
+            return session.execute_write(VoteRepository._check_vote_validity, rel_id)
+        
+
+    @staticmethod
+    def _check_vote_validity(tx, rel_id):
+        # Récupère le votant, la cible, et le domaine de la relation à valider
+        rec = tx.run(
+            """
+            MATCH (u:User)-[v:VOTED]->(t:User)
+            WHERE elementId(v) = $relId
+            RETURN elementId(u) AS voterId, v.domain AS domain, t as target
+            """,
+            relId=rel_id
+        ).single()
+        voter_id = rec["voterId"]
+        target = rec["target"]
+        domain = rec["domain"]
+
+        # Si la relation est un auto-vote (u == t), on marque comme cycle
+        if voter_id == target.element_id:
+            return 0, [], True
+
+        # Recherche du chemin des votes valides à partir de la cible
+        path = tx.run(
+            """
+            MATCH p = ((start:User)-[:VOTED* {domain: $domain, valid: true}]->(n:User)
+            WHERE elementId(start) = $startId)
+            WITH nodes(p) AS allNodes, relationships(p) AS allRels
+            ORDER BY length(p) DESC
+            LIMIT 1
+            RETURN allNodes, allRels
+            """,
+            startId=target.element_id,
+            domain=domain
+        ).single()
+        nodes = path["allNodes"] or [] if path else []
+        rels = path["allRels"] or [] if path else []
+
+        # Si le dernier rel est une self-loop, on l’enlève
+        if len(rels) and rels[-1].nodes[0].element_id == rels[-1].nodes[1].element_id:
+            rels.pop()
+            nodes.pop()
+        elif not len(nodes):
+            # S’il n’y a pas de chemin, on considère juste la cible
+            nodes = [target]
+
+        # Calcul des counts entrantes jusqu’au votant
+        incoming_rec = tx.run(
+            """
+            MATCH (:User)-[inR:VOTED]->(u:User)
+            WHERE elementId(u) = $endId
+            AND inR.cycle = false
+            AND inR.domain = $domain
+            AND inR.valid = true
+            RETURN sum(coalesce(inR.count, 0)) AS incoming
+            """,
+            endId=voter_id,
+            domain=domain
+        ).single()
+        incoming = incoming_rec["incoming"] or 0
+        
+        violated = False
+        cycle = nodes[-1].element_id == voter_id
+
+        if cycle:
+            # Si c’est un cycle, vérifier seuils de tous les nœuds du cycle
+            for node in nodes:
+                threshold = node["threshold"]
+                if threshold != -1 and incoming >= threshold:
+                    violated = True
+                    break
+
+        else:
+            # Chemin “normal” sans cycle
+            for rel in rels:
+                threshold = rel.nodes[0]["threshold"]
+                incoming_sum = rel["count"] + incoming
+                if rel["cycle"]:
+                    incoming_sum += 1
+                if threshold != -1 and incoming_sum > threshold:
+                    violated = True
+                    break
+
+            if not violated:
+                # Vérification supplémentaire avec le dernier nœud
+                last_node_threshold = nodes[-1]["threshold"]
+                if not(last_node_threshold == -1 or (len(rels) and rels[-1]["cycle"])):
+                    last_node_incoming_rec = tx.run(
+                        """
+                        MATCH (:User)-[inR:VOTED]->(u:User)
+                        WHERE elementId(u) = $endId
+                        AND inR.cycle = false
+                        AND inR.domain = $domain
+                        AND inR.valid = true
+                        RETURN sum(coalesce(inR.count, 0)) AS incoming
+                        """,
+                        endId=nodes[-1].element_id,
+                        domain=domain
+                    ).single()
+                    last_node_incoming = last_node_incoming_rec["incoming"] or 0
+                    if last_node_incoming + incoming > nodes[-1]["threshold"]:
+                        violated = True
+
+        if violated:
+            return -1, None, cycle
+        
+        # Si tout est OK, on renvoie le count, les relations du chemin, et si on crée un cycle
+        return incoming + 1, [rel.element_id for rel in rels], cycle
+    
+
+    # -------------------- MISE A JOUR DES COUNTS D'UN NOUVEAU VOTE VALIDE --------------------
+
+    @staticmethod
+    def update_counts(relId, count, relIds, cycle):
+        """
+        Met à jour les propriétés `count` et `cycle` d’un vote donné,
+        et, si cycle, met à jour les votes sur tout le chemin.
+        
+        :param relId: elementId() de la relation à mettre à jour  
+        :param count: nouveau poids à appliquer  
+        :param relIds: liste d’elementId() des relations sur le chemin  
+        :param cycle: booléen indiquant si c’est un cycle
+        """
+        driver = get_driver()
+        with driver.session() as session:
+            session.execute_write(VoteRepository._update_counts, relId, count, relIds, cycle)
+
+    @staticmethod
+    def _update_counts(tx, relId, count, relIds, cycle):
+        tx.run(
+            """
+            MATCH (:User)-[v:VOTED]->(:User)
+            WHERE elementId(v) = $relId
+            SET v.count = $count, v.cycle = $cycle
+            """,
+            relId=relId,
+            count=count,
+            cycle=cycle
+        )
+
+        if cycle:
+            # Si c’est un cycle, on met le même count a toutes les relations du chemin
+            tx.run(
+                """
+                MATCH (:User)-[v:VOTED]->(:User)
+                WHERE elementId(v) IN $relIds
+                SET v.count = $count, v.cycle = true
+                """,
+                relIds=relIds,
+                count=count
+            )
+        
+        else:
+            # Sinon, on incrémente le count des relations du chemin
+            tx.run(
+                """
+                MATCH (:User)-[v:VOTED]->(:User)
+                WHERE elementId(v) IN $relIds
+                SET v.count = v.count + $count
+                """,
+                relIds=relIds,
+                count=count
+            )
