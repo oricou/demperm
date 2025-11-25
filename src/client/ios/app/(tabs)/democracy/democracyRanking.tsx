@@ -102,6 +102,7 @@ export default function DemocracyRankingScreen() {
                                 avatarUrl={item.profilePictureUrl}
                                 username={item.displayName}
                                 votes={item.voteCount}
+                                ministry={'Santé'}
                                 onPress={() => {}}
                                 onRemove={() => {}}
                             />

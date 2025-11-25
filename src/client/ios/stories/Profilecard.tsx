@@ -77,6 +77,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = memo(
                             { color: palette.text, opacity: 0.9, fontFamily },
                         ]}
                         numberOfLines={3}
+                        ellipsizeMode="tail"
                     >
                         {description}
                     </Text>
@@ -108,6 +109,7 @@ const styles = StyleSheet.create({
     card: {
         margin: Spacing.margin,
         overflow: 'hidden',
+        minHeight: 280,
     },
     bannerWrapper: {
         height: BANNER_HEIGHT,
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        marginTop: -AVATAR / 1.3,
+        marginTop: -AVATAR / 2.5,
     },
     avatarWrapper: {
         width: AVATAR + 4,
