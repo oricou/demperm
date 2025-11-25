@@ -72,7 +72,7 @@ class ResultRepository:
         # REQUÊTE 1 : Calculer les totaux par domaine
         # ═══════════════════════════════════════════════════════════════
         query_totals = f"""
-            MATCH (voter:User)-[v:VOTED]->(target:User)
+            MATCH (voter:User)-[v:VOTED {{current: true}}]->(target:User)
             {where_clause}
             RETURN v.domain AS domain, sum(v.count) AS domainTotal
         """
@@ -84,7 +84,7 @@ class ResultRepository:
         # REQUÊTE 2 : Récupérer les top N candidats
         # ═══════════════════════════════════════════════════════════════
         query_results = f"""
-            MATCH (voter:User)-[v:VOTED]->(target:User)
+            MATCH (voter:User)-[v:VOTED {{current: true}}]->(target:User)
             {where_clause}
             WITH target.id AS userId,
                  v.domain AS domain,
