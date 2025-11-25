@@ -12,8 +12,8 @@ class VoteValidationService:
         - Valide environ 80 % des votes et rejette les 20 % restants
         - Marque les votes validés ou invalidés dans Neo4j via VoteRepository
         """
-        
-        # Supprimer ou réinitialiser les votes précédents (logique métier externe)
+
+        # Supprimer ou réinitialiser les votes précédents
         VoteValidationService.remove_previous_votes()
 
         # Récupérer la liste des relations VOTED non encore traitées
@@ -46,30 +46,31 @@ class VoteValidationService:
         """
         Supprime les votes en double par domaine, puis recalcule les poids des votes.
         
-        Étapes :  
-        1. Supprime les relations VOTED en doublon pour chaque utilisateur et chaque domaine.  
-        2. Recalcule les poids (`count`) et marque les cycles (`cycle`) pour tous les votes valides  
-           via le recalcul par domaine dans GDS.  
+        Étapes :
+        1. Supprime les relations VOTED en doublon et valide toutes les self-loop pour chaque
+           utilisateur et chaque domaine.
+        2. Recalcule les poids (`count`) et marque les cycles (`cycle`) pour tous les votes valides
+           via le recalcul par domaine dans GDS.
         """
         VoteRepository.clean_duplicate_domain_votes()
 
         VoteRepository.recalculate_counts_by_domain()
     
     @staticmethod
-    def validate_vote(vote_id):
+    def validate_vote(vote_id: str) -> bool:
         """
         Valide un vote en vérifiant sa légitimité selon les seuils et les relations.
 
         :param vote_id: l’ID (elementId) de la relation VOTED à valider  
         :return: True si le vote est validé (processed = true et valid = true), False si invalidé  
         """ 
-        (count, relIds, cycle) = VoteRepository.check_vote_validity(vote_id)
+        (count, rel_ids, cycle) = VoteRepository.check_vote_validity(vote_id)
 
         if (count == -1):
             return False
         
         VoteRepository.mark_vote_valid(vote_id)
-        VoteRepository.update_counts(vote_id, count, relIds, cycle)
-        
+        VoteRepository.update_counts(vote_id, count, rel_ids, cycle)
+
         return True
         

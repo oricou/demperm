@@ -31,6 +31,9 @@ def _create_test_votes():
             MERGE (v1)-[r:VOTED {domain: 'tech'}]->(t1)
             SET r.id = 'vote-1',
                 r.count = 100,
+                r.valid = true,
+                r.processed = true,
+                r.current = true,
                 r.createdAt = datetime($date)
             """,
             date=(datetime.now() - timedelta(days=10)).isoformat()
@@ -44,6 +47,9 @@ def _create_test_votes():
             MERGE (v2)-[r:VOTED {domain: 'tech'}]->(t2)
             SET r.id = 'vote-2',
                 r.count = 50,
+                r.valid = true,
+                r.processed = true,
+                r.current = true,
                 r.createdAt = datetime($date)
             """,
             date=(datetime.now() - timedelta(days=5)).isoformat()
@@ -57,6 +63,9 @@ def _create_test_votes():
             MERGE (v3)-[r:VOTED {domain: 'tech'}]->(t3)
             SET r.id = 'vote-3',
                 r.count = 25,
+                r.valid = true,
+                r.processed = true,
+                r.current = true,
                 r.createdAt = datetime($date)
             """,
             date=(datetime.now() - timedelta(days=15)).isoformat()
@@ -71,6 +80,9 @@ def _create_test_votes():
             MERGE (v4)-[r:VOTED {domain: 'design'}]->(t4)
             SET r.id = 'vote-4',
                 r.count = 80,
+                r.valid = true,
+                r.processed = true,
+                r.current = true,
                 r.createdAt = datetime($date)
             """,
             date=(datetime.now() - timedelta(days=8)).isoformat()
@@ -84,6 +96,9 @@ def _create_test_votes():
             MERGE (v5)-[r:VOTED {domain: 'design'}]->(t5)
             SET r.id = 'vote-5',
                 r.count = 30,
+                r.valid = true,
+                r.processed = true,
+                r.current = true,
                 r.createdAt = datetime($date)
             """,
             date=(datetime.now() - timedelta(days=3)).isoformat()
@@ -355,28 +370,28 @@ def test_election_threshold_20_percent():
             MERGE (v1:User {id: 'voter-1'})
             MERGE (t1:User {id: 'candidate-1'})
             MERGE (v1)-[r:VOTED {domain: 'test'}]->(t1)
-            SET r.id = 'vote-1', r.count = 100, r.createdAt = datetime()
+            SET r.id = 'vote-1', r.count = 100, r.valid = true, r.processed = true, r.current = true, r.createdAt = datetime()
         """)
         
         session.run("""
             MERGE (v2:User {id: 'voter-2'})
             MERGE (t2:User {id: 'candidate-2'})
             MERGE (v2)-[r:VOTED {domain: 'test'}]->(t2)
-            SET r.id = 'vote-2', r.count = 30, r.createdAt = datetime()
+            SET r.id = 'vote-2', r.count = 30, r.valid = true, r.processed = true, r.current = true, r.createdAt = datetime()
         """)
         
         session.run("""
             MERGE (v3:User {id: 'voter-3'})
             MERGE (t3:User {id: 'candidate-3'})
             MERGE (v3)-[r:VOTED {domain: 'test'}]->(t3)
-            SET r.id = 'vote-3', r.count = 20, r.createdAt = datetime()
+            SET r.id = 'vote-3', r.count = 20, r.valid = true, r.processed = true, r.current = true, r.createdAt = datetime()
         """)
         
         session.run("""
             MERGE (v4:User {id: 'voter-4'})
             MERGE (t4:User {id: 'candidate-4'})
             MERGE (v4)-[r:VOTED {domain: 'test'}]->(t4)
-            SET r.id = 'vote-4', r.count = 10, r.createdAt = datetime()
+            SET r.id = 'vote-4', r.count = 10, r.valid = true, r.processed = true, r.current = true, r.createdAt = datetime()
         """)
     
     client = APIClient()
