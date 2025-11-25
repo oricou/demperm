@@ -1,0 +1,4 @@
+[
+  { "targetUserId": "u123", "domain": "culture" },
+  { "targetUserId": "u999", "domain": "education" }
+]
