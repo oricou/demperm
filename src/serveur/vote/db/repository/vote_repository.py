@@ -214,7 +214,7 @@ class VoteRepository:
                 RETURN rel.domain                 AS domain,
                        sum(rel.count)             AS count,
                        collect(DISTINCT voter.id) AS voters
-                """
+            """
 
         records = tx.run(
             query,
@@ -228,6 +228,9 @@ class VoteRepository:
 
         for record in records:
             domain_key = record["domain"]
+            if domain_key is None:
+                continue
+
             count = record["count"] or 0
             voters = record["voters"] or []
 
