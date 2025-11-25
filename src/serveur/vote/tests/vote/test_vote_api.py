@@ -551,6 +551,8 @@ def test_received_votes_chain_cross_domain():
         HTTP_AUTHORIZATION=f"Bearer {voter_c}",
     )
 
+    _validate_for_users([voter_a, voter_b, voter_c, user_d])
+
     response_get = client.get(
         f"/votes/for-user/{user_d}",
         format="json",
