@@ -1,6 +1,6 @@
-import React, {useEffect, useState} from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import {StyleSheet, View} from 'react-native';
-import {Colors} from "@/constants/theme";
+import {Colors, Spacing} from "@/constants/theme";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {ThemedText} from "@/components/themed-text";
 import {ThemedView} from "@/components/themed-view";
@@ -10,6 +10,7 @@ import {router} from "expo-router";
 import {useTheme} from "@/hooks/use-theme";
 import {Settings} from "@/api/types/profile/settings";
 import {getSettings} from "@/api/mock/functions";
+import {UserContext, useUser} from "@/contexts/user-context";
 
 export default function SettingsScreen() {
     const { themeMode, setThemeMode, colorScheme } = useTheme();
@@ -21,6 +22,7 @@ export default function SettingsScreen() {
     const [allowedNotifications, setAllowedNotifications] = useState<boolean>(false);
     const [isLightTheme, setIsLightTheme] = useState<boolean>(colorScheme === 'light');
     const [isAutoTheme, setIsAutoTheme] = useState<boolean>(themeMode === 'auto');
+    const { user, logout } = useUser();
 
     useEffect(() => {
         const _settings = getSettings();
@@ -40,6 +42,13 @@ export default function SettingsScreen() {
             return nextIsLight;
         });
     };
+
+    const handleLogout = async () => {
+      const e = await logout();
+      if (e) {
+        alert("Erreur lors de la déconnexion : " + e.message);
+      }
+    }
 
     const handleAutoThemeChange = () => {
         setIsAutoTheme(prevIsAuto => {
@@ -121,6 +130,16 @@ export default function SettingsScreen() {
                             </View>
                         </View>
                     </ThemedView>
+                    <ThemedView style={styles.disconnect}>
+                        <ThemedText>
+                            Connecté en tant que : {user?.email}
+                        </ThemedText>
+
+                        <Button
+                            label="se déconnecter"
+                            onPress={handleLogout}
+                        />
+                    </ThemedView>
                 </ThemedView>
             </ThemedView>
         </SafeAreaView>
@@ -141,5 +160,9 @@ const styles = StyleSheet.create({
     },
     container: {
         height: "100%"
+    },
+    disconnect: {
+        margin: Spacing.margin,
+        gap: 5
     }
 });

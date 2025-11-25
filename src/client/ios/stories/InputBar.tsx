@@ -24,6 +24,8 @@ export interface InputBarProps extends TextInputProps {
     rightIcon?: iconVariants;
     /** Hide right icon */
     hideRightIcon?: boolean;
+    /** Password mode */
+    isPassword?: boolean;
 }
 
 /** Flexible InputBar component: Search bar / Chat input / Big text input */
@@ -33,10 +35,11 @@ export const InputBar = ({
                              onActionPress,
                              value: propValue,
                              style,
-                             backgroundColor = 'background',
+                             backgroundColor = 'primary',
                              bigInput = false,
                              rightIcon = 'search',
                              hideRightIcon = false,
+                             isPassword = false,
                              ...textInputProps
                          }: InputBarProps) => {
     const { colorScheme } = useThemeContext();
@@ -78,6 +81,7 @@ export const InputBar = ({
                 placeholderTextColor={textColor + '99'}
                 value={text}
                 multiline={bigInput}
+                secureTextEntry={isPassword}
                 onChangeText={handleChange}
                 {...textInputProps}
             />
@@ -97,10 +101,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 16,
-        padding: 16,
+        padding: 8,
         gap: 8,
         margin: 8,
-        borderWidth: 3,
     },
     bigContainer: {
         alignItems: 'flex-start',
