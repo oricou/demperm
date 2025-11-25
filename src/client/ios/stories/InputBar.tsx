@@ -24,6 +24,8 @@ export interface InputBarProps extends TextInputProps {
     rightIcon?: iconVariants;
     /** Hide right icon */
     hideRightIcon?: boolean;
+    /** Password mode */
+    isPassword?: boolean;
 }
 
 /** Flexible InputBar component: Search bar / Chat input / Big text input */
@@ -37,6 +39,7 @@ export const InputBar = ({
                              bigInput = false,
                              rightIcon = 'search',
                              hideRightIcon = false,
+                             isPassword = false,
                              ...textInputProps
                          }: InputBarProps) => {
     const { colorScheme } = useThemeContext();
@@ -78,6 +81,7 @@ export const InputBar = ({
                 placeholderTextColor={textColor + '99'}
                 value={text}
                 multiline={bigInput}
+                secureTextEntry={isPassword}
                 onChangeText={handleChange}
                 {...textInputProps}
             />
