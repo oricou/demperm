@@ -2,6 +2,7 @@ import uuid
 
 from rest_framework.test import APIClient
 from app.neo4j_config import get_driver
+from core.services.vote_validation_service import VoteValidationService
 
 def test_create_vote_unauthorized():
     client = APIClient()
@@ -33,6 +34,24 @@ def _cleanup_neo4j_for_users(voter_id: str, target_user_id: str):
             targetUserId=target_user_id,
         )
 
+def _validate_for_users(user_ids: list[str]):
+    """
+    Simule la validation des votes en relation avec ces IDs
+    (override les 80% initiaux)
+    """
+    driver = get_driver()
+    with driver.session() as session:
+        records = session.run(
+            """
+            MATCH (u:User)-[r:VOTED {processed: false}]->(t:User)
+            WHERE u.id IN $userIds OR t.id IN $userIds
+            RETURN elementId(r) AS rel_id
+            """,
+            userIds=user_ids,
+        )
+        print(records)
+        for record in records:
+            VoteValidationService.validate_vote(record["rel_id"])
 
 def test_create_vote_success_and_persisted_in_neo4j():
     client = APIClient()
@@ -70,6 +89,8 @@ def test_create_vote_success_and_persisted_in_neo4j():
 
     uuid.UUID(data["id"])
 
+    _validate_for_users([voter_id, target_user_id])
+
     driver = get_driver()
     with driver.session() as session:
         record = session.run(
@@ -87,9 +108,9 @@ def test_create_vote_success_and_persisted_in_neo4j():
         assert record["rel_count"] == 1
 
 
-def test_create_vote_twice_increments_count():
+def test_create_vote_only_override_vote():
     """
-    Même voter, même target, même domain → une seule relation mais count qui s'incrémente.
+    Même voter, même target, même domain → une seule relation.
     """
     client = APIClient()
 
@@ -122,6 +143,8 @@ def test_create_vote_twice_increments_count():
     )
     assert response2.status_code == 201
 
+    _validate_for_users([voter_id, target_user_id])
+
     driver = get_driver()
     with driver.session() as session:
         record = session.run(
@@ -135,7 +158,7 @@ def test_create_vote_twice_increments_count():
         ).single()
 
         assert record is not None
-        assert record["rel_count"] == 2
+        assert record["rel_count"] == 1
 
 def test_delete_vote_unauthorized():
     client = APIClient()
@@ -258,6 +281,8 @@ def test_get_received_votes_for_user_me_simple():
     )
     assert response2.status_code == 201
 
+    _validate_for_users([voter1_id, voter2_id, target_user_id])
+
     response_get = client.get(
         "/votes/for-user/me",
         format="json",
@@ -309,6 +334,8 @@ def test_get_received_votes_for_user_by_id():
         HTTP_AUTHORIZATION=f"Bearer {voter2_id}",
     )
 
+    _validate_for_users([voter1_id, voter2_id, target_user_id, caller_id])
+
     response_get = client.get(
         f"/votes/for-user/{target_user_id}",
         format="json",
@@ -348,6 +375,8 @@ def test_get_votes_by_voter_me_lists_all_votes():
     )
     assert resp1.status_code == 201
 
+    _validate_for_users([voter_id])
+
     resp2 = client.post(
         "/votes",
         payload2,
@@ -355,6 +384,8 @@ def test_get_votes_by_voter_me_lists_all_votes():
         HTTP_AUTHORIZATION=auth_header,
     )
     assert resp2.status_code == 201
+
+    _validate_for_users([voter_id])
 
     response_get = client.get(
         "/votes/by-voter/me",
@@ -400,6 +431,8 @@ def test_get_votes_by_voter_with_domain_filter():
         HTTP_AUTHORIZATION=f"Bearer {voter_id}",
     )
     assert resp2.status_code == 201
+
+    _validate_for_users([voter_id, target1_id, target2_id])
 
     response_get = client.get(
         "/votes/by-voter/me?domain=tech",
@@ -455,6 +488,8 @@ def test_received_votes_chain_abc_d():
         HTTP_AUTHORIZATION=f"Bearer {voter_c}",
     )
 
+    _validate_for_users([voter_a, voter_b, voter_c, user_d])
+
     response_get = client.get(
         f"/votes/for-user/{user_d}",
         format="json",
@@ -466,3 +501,73 @@ def test_received_votes_chain_abc_d():
 
     assert data["byDomain"]["tech"] == data["total"]
     assert data["total"] == 3
+
+def test_received_votes_chain_cross_domain():
+    """
+    Scénario de chaîne avec domaines différents :
+      A -> C (tech)
+      B -> C (finance)
+      C -> D (tech)
+
+    Le poids de C en tech ne doit tenir compte que des votes tech qu'il a reçus.
+    Donc D ne doit recevoir que A + C (2), pas B.
+
+    Attendu :
+      - D.total == 2
+      - byDomain.tech == 2
+      - usersByDomain.tech == {C} (votants directs seulement)
+    """
+    client = APIClient()
+
+    voter_a = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+    voter_b = "ffffffff-ffff-ffff-ffff-ffffffffffff"
+    voter_c = "99999999-9999-9999-9999-999999999999"
+    user_d = "10101010-1010-1010-1010-101010101010"
+    domain_tech = "tech"
+    domain_finance = "finance"
+
+    _cleanup_neo4j_for_users(voter_a, voter_c)
+    _cleanup_neo4j_for_users(voter_b, voter_c)
+    _cleanup_neo4j_for_users(voter_c, user_d)
+
+    client.post(
+        "/votes",
+        {"targetUserId": voter_c, "domain": domain_tech},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_a}",
+    )
+
+    client.post(
+        "/votes",
+        {"targetUserId": voter_c, "domain": domain_finance},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_b}",
+    )
+
+    client.post(
+        "/votes",
+        {"targetUserId": user_d, "domain": domain_tech},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_c}",
+    )
+
+    _validate_for_users([voter_a, voter_b, voter_c, user_d])
+
+    response_get = client.get(
+        f"/votes/for-user/{user_d}",
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {user_d}",
+    )
+
+    assert response_get.status_code == 200
+    data = response_get.json()
+
+    assert data["userId"] == user_d
+
+    assert data["byDomain"]["tech"] == data["total"] == 2
+
+    voters_tech = set(data["usersByDomain"]["tech"])
+    assert voters_tech == {voter_c}
+
+    assert "finance" not in data["byDomain"]
+

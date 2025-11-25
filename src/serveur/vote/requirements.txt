@@ -2,3 +2,4 @@ django
 djangorestframework
 neo4j
 pytest
+django-crontab
