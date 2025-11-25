@@ -23,7 +23,7 @@ export const Domain = ({ icon, label, onPress, thickness = 16   , style }: Domai
     const { colorScheme } = useThemeContext();
     const textColor = Colors[colorScheme].text;
     const borderColor = Colors[colorScheme].highlight1;
-    const backgroundColor = Colors[colorScheme].background;
+    const backgroundColor = Colors[colorScheme].primary;
 
     return (
         <TouchableOpacity
@@ -51,7 +51,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         borderRadius: 16,
         padding: 16,
-        marginVertical: 8,
     },
     leftSection: {
         flexDirection: 'row',
@@ -60,5 +59,6 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 16,
+        flexShrink: 1,
     },
 });

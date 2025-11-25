@@ -118,7 +118,6 @@ export default function CreatePostScreen() {
                             placeholder="Contenu ..."
                             value={content}
                             onChangeText={setContent}
-                            backgroundColor="background"
                             bigInput
                             hideRightIcon
                             style={styles.contentInput}
