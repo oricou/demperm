@@ -466,3 +466,71 @@ def test_received_votes_chain_abc_d():
 
     assert data["byDomain"]["tech"] == data["total"]
     assert data["total"] == 3
+
+def test_received_votes_chain_cross_domain():
+    """
+    Scénario de chaîne avec domaines différents :
+      A -> C (tech)
+      B -> C (finance)
+      C -> D (tech)
+
+    Le poids de C en tech ne doit tenir compte que des votes tech qu'il a reçus.
+    Donc D ne doit recevoir que A + C (2), pas B.
+
+    Attendu :
+      - D.total == 2
+      - byDomain.tech == 2
+      - usersByDomain.tech == {C} (votants directs seulement)
+    """
+    client = APIClient()
+
+    voter_a = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+    voter_b = "ffffffff-ffff-ffff-ffff-ffffffffffff"
+    voter_c = "99999999-9999-9999-9999-999999999999"
+    user_d = "10101010-1010-1010-1010-101010101010"
+    domain_tech = "tech"
+    domain_finance = "finance"
+
+    _cleanup_neo4j_for_users(voter_a, voter_c)
+    _cleanup_neo4j_for_users(voter_b, voter_c)
+    _cleanup_neo4j_for_users(voter_c, user_d)
+
+    client.post(
+        "/votes",
+        {"targetUserId": voter_c, "domain": domain_tech},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_a}",
+    )
+
+    client.post(
+        "/votes",
+        {"targetUserId": voter_c, "domain": domain_finance},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_b}",
+    )
+
+    client.post(
+        "/votes",
+        {"targetUserId": user_d, "domain": domain_tech},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {voter_c}",
+    )
+
+    response_get = client.get(
+        f"/votes/for-user/{user_d}",
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {user_d}",
+    )
+
+    assert response_get.status_code == 200
+    data = response_get.json()
+
+    assert data["userId"] == user_d
+
+    assert data["byDomain"]["tech"] == data["total"] == 2
+
+    voters_tech = set(data["usersByDomain"]["tech"])
+    assert voters_tech == {voter_c}
+
+    assert "finance" not in data["byDomain"]
+
