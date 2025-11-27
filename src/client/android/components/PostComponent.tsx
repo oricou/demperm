@@ -19,6 +19,7 @@ type Props = {
 const PostComponent: React.FC<Props> = ({ post }) => {
   const [showProfile, setShowProfile] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [showPost, setShowPost] = useState(false);
 
   const availableThemes = [theme1, theme2, theme3, theme4, theme5, theme6];
   const getThemeForPost = () => {
@@ -61,7 +62,9 @@ const PostComponent: React.FC<Props> = ({ post }) => {
       </View>
 
       <Text style={styles.title}>{post.title}</Text>
-      <Text style={styles.paragraph}>{post.content}</Text>
+      <TouchableOpacity onPress={() => setShowPost(true)}>
+            <Text style={styles.paragraph}>{post.content}</Text>
+          </TouchableOpacity>
 
       <View style={styles.actionsRow}>
         <View style={styles.actionItem}>
@@ -88,12 +91,12 @@ const PostComponent: React.FC<Props> = ({ post }) => {
       />
       <View style={styles.lineSeparator} />
       </View>
+
+
+
       <Modal visible={showProfile} animationType="slide" onRequestClose={() => setShowProfile(false)}>
         <View style={{ flex: 1 }}>
-          {/* show app header */}
           <TopBar />
-
-          {/* content area for the profile screen */}
           <View style={{ flex: 1 }}>
             <View style={{ padding: 8 }}>
               <TouchableOpacity onPress={() => setShowProfile(false)}>
@@ -102,24 +105,28 @@ const PostComponent: React.FC<Props> = ({ post }) => {
             </View>
             <ProfileScreen />
           </View>
-
-          {/* show app bottom navigation */}
           <BottomBar />
         </View>
       </Modal>
 
+
+
       <Modal visible={showTheme} animationType="slide" onRequestClose={() => setShowTheme(false)}>
         <View style={{ flex: 1 }}>
-          {/* show app header */}
           <TopBar />
-
-          {/* content area for the theme page */}
           <View style={{ flex: 1 }}>
-            {/* No explicit retour per request — modal shows ThemePage */}
             <ThemePage theme={getThemeForPost()} />
           </View>
+          <BottomBar />
+        </View>
+      </Modal>
 
-          {/* show app bottom navigation */}
+    <Modal visible={showPost} animationType="slide" onRequestClose={() => setShowPost(false)}>
+        <View style={{ flex: 1 }}>
+          <TopBar />
+          <View style={{ flex: 1 }}>
+            <PostComponent post={post} />
+          </View>
           <BottomBar />
         </View>
       </Modal>
