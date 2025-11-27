@@ -13,7 +13,7 @@ const Post1: Post = {
     alias: 'Palo la boss',
     timestamp: new Date(),
     ownerId: 1,
-    theme: 'Centres d\'intérêt',
+    theme: 'ThèmeExemple2',
     likes: 107,
     comments: []
 };
