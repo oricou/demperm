@@ -208,3 +208,5 @@ __marimo__/
 
 .idea
 neo4j
+node_modules
+src/client/web/node_modules

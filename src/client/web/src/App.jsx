@@ -1,5 +1,6 @@
 import './App.css'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { isAuthenticated, clearCredentials } from './shared/auth'
 import Login from './app/auth/login'
 import { AppShell } from './components/layout/AppShell'
 import ProfileSelfPage from './app/social/dashboard/page'
@@ -16,13 +17,22 @@ function AppLayout() {
   )
 }
 
+function RequireAuth({ children }) {
+  const ok = typeof window !== 'undefined' && isAuthenticated()
+  if (!ok) {
+    if (typeof window !== 'undefined') clearCredentials()
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/profil" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/auth/login" element={<Login />} />
-      <Route element={<AppLayout />}>
+      <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
         <Route path="/profil" element={<ProfileSelfPage />} />
         <Route path="/profil/public" element={<PublicProfilePage />} />
         <Route path="/vote" element={<VoteDashboardPage />} />
