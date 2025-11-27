@@ -420,7 +420,7 @@ export const profiles: Profile[] = [
     {
         user: U(2),
         voteCount: 96,
-        bio: "Aimé par tous, adulé par certains. Long live the traitors of MTI.",
+        bio: "Une vraie citoyenne curieuse.",
         posts: [posts.find(p => p.author.id === 2)!],
     },
     {

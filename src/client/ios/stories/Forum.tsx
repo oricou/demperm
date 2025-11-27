@@ -22,7 +22,7 @@ export interface ForumProps {
 export const Forum = ({ title, tags = [], onPress, style }: ForumProps) => {
     const { colorScheme } = useThemeContext();
 
-    const backgroundColor = Colors[colorScheme].background;
+    const backgroundColor = Colors[colorScheme].primary;
     const textColor = Colors[colorScheme].text;
 
     return (
@@ -70,6 +70,5 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         marginTop: 8,
-        gap: 6,
     },
 });

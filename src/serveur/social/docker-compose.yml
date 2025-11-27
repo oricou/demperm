@@ -1,0 +1,91 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: demperm_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-demperm_social}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - demperm_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: demperm_redis
+    command: redis-server
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - demperm_network
+
+  # Django API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: demperm_api
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./api:/app/api
+      - static_volume:/app/api/staticfiles
+      - media_volume:/app/api/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - demperm_network
+    restart: unless-stopped
+
+  # MinIO (S3-compatible storage) - TODO for media uploads
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: demperm_minio
+  #   environment:
+  #     MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+  #     MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+  #   volumes:
+  #     - minio_data:/data
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   command: server /data --console-address ":9001"
+  #   networks:
+  #     - demperm_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  # minio_data:
+
+networks:
+  demperm_network:
+    driver: bridge
+
