@@ -1,5 +1,6 @@
-import React from "react";
-import { View, Text, Image, FlatList } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Image, FlatList, Modal, TouchableOpacity } from "react-native";
+import ProfileScreen from "../app/profile";
 import Post from "../types/post";
 import styles from "../styles/post_style";
 import CommentComponent from "./CommentComponent";
@@ -12,16 +13,21 @@ type Props = {
 //TO DO afficher une image help
 // Cette page affiche un post avec ses informations
 const PostComponent: React.FC<Props> = ({ post }) => {
+  const [showProfile, setShowProfile] = useState(false);
+
   const handleReply = (commentId: string) => {
     console.log("Reponse au commentaire :", commentId);
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      <View style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.leftColumn}>
           <ProfileAvatar size={40} />
-          <Text style={styles.alias}>{post.alias}</Text>
+          <TouchableOpacity onPress={() => setShowProfile(true)}>
+            <Text style={styles.alias}>{post.alias}</Text>
+          </TouchableOpacity>
           <Text style={styles.timestamp}>
             {" "}
             {post.timestamp.toLocaleString()}
@@ -57,7 +63,18 @@ const PostComponent: React.FC<Props> = ({ post }) => {
         )}
       />
       <View style={styles.lineSeparator} />
-    </View>
+      </View>
+      <Modal visible={showProfile} animationType="slide" onRequestClose={() => setShowProfile(false)}>
+        <View style={{ flex: 1 }}>
+          <View style={{ padding: 8 }}>
+            <TouchableOpacity onPress={() => setShowProfile(false)}>
+              <Text style={{ color: "#007aff", marginBottom: 8 }}>← Retour</Text>
+            </TouchableOpacity>
+          </View>
+          <ProfileScreen />
+        </View>
+      </Modal>
+    </>
   );
 };
 

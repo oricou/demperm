@@ -18,7 +18,6 @@ const ThemesPage: React.FC<Props> = ({ themes }) => {
     return (
       <View style={{ flex: 1 }}>
         <View style={themes_list_style.headerBack}>
-
         </View>
         <ThemePage theme={selectedTheme} />
       </View>
