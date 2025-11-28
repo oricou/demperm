@@ -1,14 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, FlatList, Modal, TouchableOpacity } from "react-native";
 import ProfileScreen from "../app/profile";
 import ThemePage from "../app/messagerie_debat/theme";
 import TopBar from "./TopBar";
 import BottomBar from "./BottomBar";
-import { theme1, theme2, theme3, theme4, theme5, theme6 } from "@/public/exemples/exemples_theme";
 import Post from "../types/post";
 import styles from "../styles/post_style";
-import CommentComponent from "./CommentComponent";
 import ProfileAvatar from "./ProfilePicture";
+import Theme from '@/types/theme';
 
 type Props = {
   post: Post;
@@ -21,27 +20,34 @@ const PostComponent: React.FC<Props> = ({ post }) => {
   const [showTheme, setShowTheme] = useState(false);
   const [showPost, setShowPost] = useState(false);
 
-  const availableThemes = [theme1, theme2, theme3, theme4, theme5, theme6];
-  const getThemeForPost = () => {
-    // try to find a theme with matching name or uuid
-    const byName = availableThemes.find((t) => t.name === post.theme);
-    if (byName) return byName;
-    const byUuid = availableThemes.find((t) => t.uuid === post.theme);
-    if (byUuid) return byUuid;
-    // fallback: build a minimal theme using the post's theme string as name
-    return {
-      uuid: `theme-fallback-${post.theme}`,
-      name: post.theme,
-      description: "",
-      likes: 0,
-      posts: [post],
-    } as any;
-  };
+  const [themes, setThemes] = useState<Theme[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    // Fetch forums/themes from backend
+    const API = 'http://localhost:8000/api/v1';
+    fetch(`${API}/forums/`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return;
+        // Backend may return { results: [...] } or an array directly
+        const list = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
+        setThemes(list);
+      })
+      .catch((err) => {
+        console.warn('Failed to load themes:', err);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
 
   const handleReply = (commentId: string) => {
     console.log("Reponse au commentaire :", commentId);
   };
-
+  
   return (
     <>
       <View style={styles.container}>
@@ -49,15 +55,15 @@ const PostComponent: React.FC<Props> = ({ post }) => {
         <View style={styles.leftColumn}>
           <ProfileAvatar size={40} />
           <TouchableOpacity onPress={() => setShowProfile(true)}>
-            <Text style={styles.alias}>{post.alias}</Text>
+            <Text style={styles.alias}>{post.author_username}</Text>
           </TouchableOpacity>
           <Text style={styles.timestamp}>
             {" "}
-            {post.timestamp.toLocaleString()}
+            {post.updated_at.toLocaleString()}
           </Text>
         </View>
         <TouchableOpacity onPress={() => setShowTheme(true)}>
-          <Text style={styles.theme}>{post.theme}</Text>
+          {<Text style={styles.theme}>{post.subforum_id}</Text>}
         </TouchableOpacity>
       </View>
 
@@ -72,16 +78,19 @@ const PostComponent: React.FC<Props> = ({ post }) => {
             source={require("../public/images/like.png")}
             style={styles.actionIcon}
           />
-          <Text style={styles.actionText}>{post.likes}</Text>
+          <Text style={styles.actionText}>{post.like_count}</Text>
         </View>
         <View style={styles.actionItem}>
           <Image
             source={require("../public/images/commentaire.png")}
             style={styles.actionIcon}
           />
-          <Text style={styles.actionText}>{post.comments.length}</Text>
+          <Text style={styles.actionText}>{post.comment_count}</Text>
         </View>
       </View>
+      {
+        // TO DO jsp comment récupérer les commentaires avec le backend
+        /*
       <FlatList
         data={post.comments}
         keyExtractor={(item) => item.uuid}
@@ -89,6 +98,7 @@ const PostComponent: React.FC<Props> = ({ post }) => {
           <CommentComponent comment={item} onReply={handleReply} />
         )}
       />
+      */}
       <View style={styles.lineSeparator} />
       </View>
 
@@ -115,7 +125,7 @@ const PostComponent: React.FC<Props> = ({ post }) => {
         <View style={{ flex: 1 }}>
           <TopBar />
           <View style={{ flex: 1 }}>
-            <ThemePage theme={getThemeForPost()} />
+            {/*<ThemePage theme={getThemeForPost()} />*/}
           </View>
           <BottomBar />
         </View>

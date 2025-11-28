@@ -28,7 +28,7 @@ const PostPage: React.FC<Props> = ({ posts }) => {
 
       <FlatList
         data={data}
-        keyExtractor={(item) => item.uuid}
+        keyExtractor={(item) => item.post_id}
         renderItem={({ item }) => (
            <TouchableOpacity onPress={() => setselectedPost(item)}>
           <PostComponent post={item}/>

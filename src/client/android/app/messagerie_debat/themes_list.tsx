@@ -34,7 +34,7 @@ const ThemesPage: React.FC<Props> = ({ themes }) => {
       <FlatList
         style={{ flex: 1, paddingHorizontal: 12 }}
         data={data}
-        keyExtractor={(item) => item.uuid}
+        keyExtractor={(item) => item.forum_id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => setSelectedTheme(item)}>
             <ThemeComponent theme={item} />
