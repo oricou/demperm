@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+//Probablement inutile, je peux re utiliser le component PostComponent pour les comments
+
+
+/*import React, { useState } from "react";
 import { View, Text, Image, FlatList, TouchableOpacity } from "react-native";
-import Comment from "@/types/comments";
+import Comment from "@/types/post";
 import styles from "@/styles/post_style";
 import ProfileAvatar from "./ProfilePicture";
 
 type Props = {
-  comment: Comment;
+  post: Comment;
   isReply?: boolean;
   onReply: (commentId: string) => void;
 };
@@ -83,3 +86,4 @@ const CommentComponent: React.FC<Props> = ({
 };
 
 export default CommentComponent;
+*/
