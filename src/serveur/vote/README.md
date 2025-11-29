@@ -180,7 +180,7 @@ Services disponibles :
 | ------------------- | -------------------------------------------------------------------- |
 | Backend             | [http://localhost:8000](http://localhost:8000)                       |
 | Neo4j Browser       | [http://localhost:7474](http://localhost:7474)                       |
-| Swagger (si activé) | [http://localhost:8000/swagger/](http://localhost:8000/swagger/)     |
+| Swagger (si activé) | [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)     |
 
 Identifiants Neo4j :
 
