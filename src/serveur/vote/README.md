@@ -184,7 +184,7 @@ Services disponibles :
 
 Identifiants Neo4j :
 
-```plaintext
+```yaml
 username : neo4j
 password : password
 ```
@@ -207,4 +207,11 @@ Voir les votes
 ```cypher
 MATCH (v:User)-[r:VOTED]->(t:User)
 RETURN v, r, t LIMIT 50;
+```
+
+## Exemple de test
+
+Depuis `demperm/server/vote` :
+```bash
+./test_chain_votes.sh
 ```
