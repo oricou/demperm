@@ -42,11 +42,11 @@ export default function VoteDashboardPage() {
   return (
     <div className="grid gap-6 md:grid-cols-[280px_minmax(0,1fr)_220px]">
       {hasElections ? (
-        <SidebarList title="Liste des personnalités" items={elections} activeId={activeElection ?? undefined} onSelect={handleSelectElection} />
+        <SidebarList title="Mes votes" items={elections} activeId={activeElection ?? undefined} onSelect={handleSelectElection} />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Liste des personnalités</CardTitle>
+            <CardTitle>Mes votes</CardTitle>
           </CardHeader>
           <CardContent>
             <EmptyState
