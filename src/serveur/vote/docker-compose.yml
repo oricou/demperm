@@ -25,3 +25,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+  
+  backend:
+    build: .
+    container_name: vote-backend
+    restart: unless-stopped
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: app.settings
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+    volumes:
+      - .:/app
