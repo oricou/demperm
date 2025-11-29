@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "api",
     "core",
     "django_crontab",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -77,6 +78,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 WSGI_APPLICATION = 'app.wsgi.application'
@@ -137,3 +139,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CRONJOBS = [
     ('0 1 * * *', 'app.cron.process_daily_votes'),
 ]
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Vote API",
+    "DESCRIPTION": "API du serveur de vote",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    "SECURITY": [{"bearerAuth": []}],
+}
+
