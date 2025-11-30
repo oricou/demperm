@@ -12,7 +12,13 @@ type Props = {
 
 const ThemesPage: React.FC<Props> = ({ themes }) => {
   const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
+  const [searchText, setSearchText] = useState('');
   const data = themes ?? [];
+
+  const filteredThemes = data.filter(theme =>
+    theme.name.toLowerCase().includes(searchText.toLowerCase()) ||
+    theme.description.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   if (selectedTheme) {
     return (
@@ -28,12 +34,16 @@ const ThemesPage: React.FC<Props> = ({ themes }) => {
     <View style={{ flex: 1 }}>
 
       <View style={{ paddingHorizontal: 12 }}>
-        <SearchBarComponent value="" onChangeText={() => {}} placeholder="Rechercher" />
+        <SearchBarComponent
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Rechercher un thème"
+        />
       </View>
 
       <FlatList
         style={{ flex: 1, paddingHorizontal: 12 }}
-        data={data}
+        data={filteredThemes}
         keyExtractor={(item) => item.forum_id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => setSelectedTheme(item)}>

@@ -11,43 +11,52 @@ type Props = {
 };
 
 //Cette page affiche un theme avec ses posts
-export default function ThemePage({theme}: Props) {
+export default function ThemePage({ theme }: Props) {
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const [searchText, setSearchText] = useState('');
 
 
-   useEffect(() => {
-      let mounted = true;
-      // Fetch forums/themes from backend
-      const API = 'http://localhost:8000/api/v1';
-      fetch(`${API}/subforums/{theme.uuid}/posts/`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (!mounted) return;
-          // Backend may return { results: [...] } or an array directly
-          const list = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
-          setPosts(list);
-        })
-        .catch((err) => {
-          console.warn('Failed to load themes:', err);
-        });
-  
-      return () => {
-        mounted = false;
-      };
-    }, []);
+  useEffect(() => {
+    let mounted = true;
+    // Fetch forums/themes from backend
+    const API = 'http://localhost:8000/api/v1';
+    fetch(`${API}/subforums/{theme.uuid}/posts/`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!mounted) return;
+        // Backend may return { results: [...] } or an array directly
+        const list = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
+        setPosts(list);
+      })
+      .catch((err) => {
+        console.warn('Failed to load themes:', err);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
 
-  const filtered: Post[] = posts;
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchText.toLowerCase()) ||
+    post.content.toLowerCase().includes(searchText.toLowerCase()) ||
+    post.author_username.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   return (
     <View style={{ flex: 1 }}>
       <FlatList
-        data={filtered}
+        data={filteredPosts}
         keyExtractor={(item) => item.post_id}
         ListHeaderComponent={() => (
           <View style={{ paddingHorizontal: 12 }}>
-            <SearchBarComponent value="" onChangeText={() => {}} placeholder="Rechercher" />
+            <SearchBarComponent
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Rechercher un post"
+            />
             <ThemeComponent theme={theme} />
           </View>
         )}

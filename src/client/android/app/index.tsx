@@ -8,6 +8,7 @@ import ListePage from "./page_vote";
 import PrivateMessagePage from "./messagerie_debat/page_private_message";
 import MessagePage from "./messagerie_debat/page_chat";
 import ConnectionScreen from "./connection";
+import ThemePage from "./messagerie_debat/theme";
 
 export default function Index() {
   return (
