@@ -92,7 +92,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-L'API est accessible sur `http://localhost:8000/api/v1/`
+L'API est accessible sur `http://localhost:8000/api/v1/`.
 
 ## 🐳 Déploiement avec Docker
 
