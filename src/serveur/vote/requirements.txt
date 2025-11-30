@@ -1,5 +1,6 @@
-django
-djangorestframework
-neo4j
-pytest
-django-crontab
+django==5.2.8
+djangorestframework==3.16.1
+neo4j==6.0.3
+pytest==9.0.1
+django-crontab==0.7.1
+drf-spectacular==0.29.0

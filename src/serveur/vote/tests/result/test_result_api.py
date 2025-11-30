@@ -107,16 +107,16 @@ def _create_test_votes():
 
 def test_get_results_unauthorized():
     """
-    Test que GET /results retourne 403 sans authentification.
+    Test que GET /api/results retourne 403 sans authentification.
     """
     client = APIClient()
-    response = client.get("/results")
+    response = client.get("/api/results")
     assert response.status_code == 403
 
 
 def test_get_results_all_domains():
     """
-    Test que GET /results retourne tous les résultats sans filtre.
+    Test que GET /api/results retourne tous les résultats sans filtre.
     Vérifie aussi la logique d'élection (≥20% des voix du domaine).
     """
     _cleanup_neo4j()
@@ -126,7 +126,7 @@ def test_get_results_all_domains():
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results",
+        "/api/results",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -169,7 +169,7 @@ def test_get_results_all_domains():
 
 def test_get_results_filter_by_domain():
     """
-    Test que GET /results?domain=tech filtre correctement par domaine.
+    Test que GET /api/results?domain=tech filtre correctement par domaine.
     """
     _cleanup_neo4j()
     _create_test_votes()
@@ -178,7 +178,7 @@ def test_get_results_filter_by_domain():
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results?domain=tech",
+        "/api/results?domain=tech",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -207,7 +207,7 @@ def test_get_results_filter_by_domain():
 
 def test_get_results_with_top_limit():
     """
-    Test que GET /results?top=2 limite le nombre de résultats.
+    Test que GET /api/results?top=2 limite le nombre de résultats.
     """
     _cleanup_neo4j()
     _create_test_votes()
@@ -216,7 +216,7 @@ def test_get_results_with_top_limit():
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results?top=2",
+        "/api/results?top=2",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -240,7 +240,7 @@ def test_get_results_with_top_limit():
 
 def test_get_results_with_since_filter():
     """
-    Test que GET /results?since=YYYY-MM-DD filtre par date.
+    Test que GET /api/results?since=YYYY-MM-DD filtre par date.
     """
     _cleanup_neo4j()
     _create_test_votes()
@@ -252,7 +252,7 @@ def test_get_results_with_since_filter():
     since_date = (datetime.now() - timedelta(days=12)).strftime("%Y-%m-%d")
     
     response = client.get(
-        f"/results?since={since_date}",
+        f"/api/results?since={since_date}",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -278,7 +278,7 @@ def test_get_results_combined_filters():
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results?domain=tech&top=2",
+        "/api/results?domain=tech&top=2",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -298,13 +298,13 @@ def test_get_results_combined_filters():
 
 def test_get_results_invalid_top_parameter():
     """
-    Test que GET /results?top=invalid retourne 400.
+    Test que GET /api/results?top=invalid retourne 400.
     """
     client = APIClient()
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results?top=invalid",
+        "/api/results?top=invalid",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -314,13 +314,13 @@ def test_get_results_invalid_top_parameter():
 
 def test_get_results_invalid_since_parameter():
     """
-    Test que GET /results?since=invalid retourne 400.
+    Test que GET /api/results?since=invalid retourne 400.
     """
     client = APIClient()
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results?since=invalid-date",
+        "/api/results?since=invalid-date",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -330,7 +330,7 @@ def test_get_results_invalid_since_parameter():
 
 def test_get_results_empty_database():
     """
-    Test que GET /results retourne une liste vide si aucun vote n'existe.
+    Test que GET /api/results retourne une liste vide si aucun vote n'existe.
     """
     _cleanup_neo4j()
     
@@ -338,7 +338,7 @@ def test_get_results_empty_database():
     auth_header = "Bearer test-user"
     
     response = client.get(
-        "/results",
+        "/api/results",
         HTTP_AUTHORIZATION=auth_header,
     )
     
@@ -397,7 +397,7 @@ def test_election_threshold_20_percent():
     client = APIClient()
     auth_header = "Bearer test-user"
     
-    response = client.get("/results?domain=test", HTTP_AUTHORIZATION=auth_header)
+    response = client.get("/api/results?domain=test", HTTP_AUTHORIZATION=auth_header)
     
     assert response.status_code == 200
     data = response.json()

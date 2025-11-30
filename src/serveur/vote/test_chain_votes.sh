@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:8000/api"
 
 ########################################
 # Scénario 1 : A->C (tech), B->C (tech), C->D (tech)

@@ -14,31 +14,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.urls import path
-from api.vote_controller import (
-    VoteView,
-    VotesByVoterView,
-    VotesByVoterMeView,
-    VotesForUserView,
-    VotesForUserMeView,
-)
-from api.publication_controller import PublicationSettingView
-from api.result_controller import ResultView
-from api.threshold_controller import ThresholdSettingView
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    path("votes", VoteView.as_view(), name="create_vote"),
-    path("votes/<str:domain>", VoteView.as_view(), name="delete_vote"),
+    path('api/', include('api.api_urls')),
 
-    path("votes/by-voter/me", VotesByVoterMeView.as_view(), name="votes_by_voter_me"),
-    path("votes/by-voter/<str:voterId>", VotesByVoterView.as_view(), name="votes_by_voter"),
-
-    path("votes/for-user/me", VotesForUserMeView.as_view(), name="votes_for_user_me"),
-    path("votes/for-user/<str:userId>", VotesForUserView.as_view(), name="votes_for_user"),
-
-    path("publication/<str:userId>", PublicationSettingView.as_view(), name="publication_setting"),
-    path("results", ResultView.as_view(), name="get_results"),
-    path("threshold/<str:userId>", ThresholdSettingView.as_view(), name="threshold_setting"),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema')),
 ]
 
 
