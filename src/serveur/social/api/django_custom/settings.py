@@ -3,7 +3,6 @@ Django settings for demperm-social backend.
 """
 import os
 from pathlib import Path
-from datetime import timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -31,7 +30,6 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
-    'rest_framework_simplejwt',
     'corsheaders',
     'django_ratelimit',
     'drf_yasg',
@@ -154,7 +152,7 @@ SESSION_CACHE_ALIAS = 'default'
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'apps.custom_auth.authentication.CustomJWTAuthentication',
+        'apps.custom_auth.authentication.FirebaseAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -183,24 +181,6 @@ REST_FRAMEWORK = {
         'anon': '100/hour',
         'user': '1000/hour',
     },
-}
-
-# JWT Configuration
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', '3600'))),
-    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', '604800'))),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': os.getenv('JWT_ALGORITHM', 'HS256'),
-    'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', SECRET_KEY),
-    'VERIFYING_KEY': None,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'user_id',
-    'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
 # drf-yasg / Swagger UI configuration
@@ -248,10 +228,10 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Google OAuth2 Configuration
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
-GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/api/v1/auth/google/callback')
+# Firebase Configuration
+FIREBASE_SERVICE_ACCOUNT_KEY = os.getenv('FIREBASE_SERVICE_ACCOUNT_KEY', None)
+# If FIREBASE_SERVICE_ACCOUNT_KEY is None, Firebase will use Application Default Credentials
+# This is useful when running on Google Cloud Platform
 
 # Security Settings
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'

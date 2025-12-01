@@ -14,6 +14,86 @@ class UserService:
     """Service for user management."""
     
     @staticmethod
+    @transaction.atomic
+    def create_user_from_firebase(firebase_uid: str, email: str, username: str, **kwargs) -> User:
+        """
+        Create a new user from Firebase authentication.
+        
+        Args:
+            firebase_uid: Firebase UID from JWT
+            email: User email from JWT
+            username: Username (required from frontend)
+            **kwargs: Additional fields:
+                - profile_picture: ImageField (blob) - optional
+                - bio: str - optional, default ''
+                - location: str - optional, default ''
+                - privacy: bool - optional, default True (public)
+            
+        Returns:
+            Created user instance
+            
+        Raises:
+            ConflictError: If username or email already exists
+            ValidationError: If data is invalid
+        """
+        # Validate username
+        username = Validator.validate_username(username)
+        
+        # Check if username already taken
+        existing_username = UserRepository.get_by_username(username)
+        if existing_username:
+            raise ConflictError("Username already taken")
+        
+        # Check if email already taken
+        existing_email = User.objects.filter(email=email).first()
+        if existing_email:
+            raise ConflictError("Email already registered")
+        
+        # Check if firebase_uid already exists
+        existing_firebase = User.objects.filter(firebase_uid=firebase_uid).first()
+        if existing_firebase:
+            raise ConflictError("Firebase user already registered")
+        
+        # Create user
+        user = User.objects.create(
+            firebase_uid=firebase_uid,
+            email=email,
+            username=username,
+            is_admin=False,
+            is_banned=False
+        )
+        
+        # Convert privacy boolean to string format for database
+        privacy_bool = kwargs.get('privacy', True)  # Default: True (public)
+        
+        # Create profile
+        profile = UserProfile.objects.create(
+            user=user,
+            display_name=username,  # Default display_name to username
+            profile_picture=kwargs.get('profile_picture'),  # ImageField (blob)
+            bio=kwargs.get('bio', ''),
+            location=kwargs.get('location', ''),
+            privacy=privacy_bool  # Store as boolean
+        )
+        
+        # Create settings with defaults
+        settings = UserSettings.objects.create(
+            user=user,
+            email_notifications=True,  # Default to True
+            language='fr'  # Default to French
+        )
+        
+        # Audit log
+        AuditLogRepository.create(
+            user_id=str(user.user_id),
+            action_type='user_created',
+            resource_type='user',
+            resource_id=str(user.user_id)
+        )
+        
+        return user
+    
+    @staticmethod
     def get_user_by_id(user_id: str) -> User:
         """
         Get user by ID.
@@ -37,6 +117,13 @@ class UserService:
         """Get current user's full profile."""
         user = UserService.get_user_by_id(user_id)
         
+        # Get profile picture URL if exists
+        profile_picture_url = None
+        if user.profile.profile_picture:
+            profile_picture_url = user.profile.profile_picture.url
+        elif user.profile.profile_picture_url:  # Fallback to old URL field
+            profile_picture_url = user.profile.profile_picture_url
+        
         return {
             'user_id': str(user.user_id),
             'email': user.email,
@@ -47,10 +134,10 @@ class UserService:
             'last_login_at': user.last_login_at,
             'profile': {
                 'display_name': user.profile.display_name,
-                'profile_picture_url': user.profile.profile_picture_url,
+                'profile_picture_url': profile_picture_url,
                 'bio': user.profile.bio,
                 'location': user.profile.location,
-                'privacy': user.profile.privacy,
+                'privacy': 'public' if user.profile.privacy else 'private',  # Convert boolean to string
             },
             'settings': {
                 'email_notifications': user.settings.email_notifications,
