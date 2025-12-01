@@ -5,9 +5,12 @@ import { Slot } from 'expo-router'; // Slot renders the current page
 // Import your persistent components
 import TopBar from '@/components/TopBar';
 import BottomBar from '@/components/BottomBar';
+import { UserProvider } from '@/contexts/user-context';
+
 
 export default function RootLayout() {
   return (
+    <UserProvider>
     <View style={styles.container}>
       <TopBar />
 
@@ -17,6 +20,7 @@ export default function RootLayout() {
 
       <BottomBar />
     </View>
+    </UserProvider>
   );
 }
 
