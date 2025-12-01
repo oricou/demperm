@@ -24,7 +24,7 @@ const BottomBar: React.FC = () => {
           <Ionicons name="arrow-back" size={30} color="#00008B" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/')} style={styles.iconContainer}>
+        <TouchableOpacity onPress={() => router.push('/archive')} style={styles.iconContainer}>
           {isActive('/') && <View style={styles.bump} />}
           <Ionicons name="home" size={30} color="#00008B" />
         </TouchableOpacity>
