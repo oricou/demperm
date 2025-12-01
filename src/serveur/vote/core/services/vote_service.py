@@ -3,7 +3,6 @@ from django.utils import timezone
 
 from db.repository.vote_repository import VoteRepository
 
-
 class VoteService:
     @staticmethod
     def create_vote(voter_id: str, target_user_id: str, domain: str) -> dict:

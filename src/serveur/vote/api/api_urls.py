@@ -11,6 +11,9 @@ from api.vote_controller import (
 )
 from api.publication_controller import PublicationSettingView
 from api.result_controller import ResultView
+from api.publication_controller import PublicationSettingView
+from api.stats_controller import StatsDailyView, StatsMonthlyView, StatsChartView
+
 
 urlpatterns = [
     path("votes", VoteView.as_view(), name="create_vote"),
@@ -26,4 +29,8 @@ urlpatterns = [
     path("results", ResultView.as_view(), name="get_results"),
 
     path("publication", PublicationSettingView.as_view(), name="publication_setting"),
+
+    path("stats/votes/daily/<str:userId>", StatsDailyView.as_view(), name="stats_daily"),
+    path("stats/votes/monthly/<str:userId>", StatsMonthlyView.as_view(), name="stats_monthly"),
+    path("stats/chart", StatsChartView.as_view(), name="stats_chart"),
 ]
