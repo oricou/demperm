@@ -51,6 +51,7 @@ services:
       - ./api:/app/api
       - static_volume:/app/api/staticfiles
       - media_volume:/app/api/media
+      - ./firebase-adminsdk-key.json:/app/firebase-adminsdk-key.json:ro
     ports:
       - "8000:8000"
     depends_on:
