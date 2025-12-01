@@ -1,0 +1,93 @@
+[
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440004",
+    "domain": "culture",
+    "count": 156,
+    "elected": true,
+    "electedAt": "2023-11-15T00:00:00Z"
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440005",
+    "domain": "culture",
+    "count": 142,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440003",
+    "domain": "culture",
+    "count": 98,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440009",
+    "domain": "culture",
+    "count": 45,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "domain": "culture",
+    "count": 23,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440007",
+    "domain": "transport",
+    "count": 203,
+    "elected": true,
+    "electedAt": "2022-08-20T00:00:00Z"
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440006",
+    "domain": "transport",
+    "count": 87,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440008",
+    "domain": "transport",
+    "count": 62,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "domain": "transport",
+    "count": 31,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440010",
+    "domain": "education",
+    "count": 178,
+    "elected": true,
+    "electedAt": "2023-05-10T00:00:00Z"
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "domain": "education",
+    "count": 112,
+    "elected": false,
+    "electedAt": null
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440002",
+    "domain": "environnement",
+    "count": 234,
+    "elected": true,
+    "electedAt": "2024-01-05T00:00:00Z"
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "domain": "environnement",
+    "count": 45,
+    "elected": false,
+    "electedAt": null
+  }
+]

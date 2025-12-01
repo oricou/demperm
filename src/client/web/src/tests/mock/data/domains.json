@@ -1,5 +1,47 @@
 [
-  { "id": "dom_01", "label": "Culture" },
-  { "id": "dom_02", "label": "Transport" },
-  { "id": "dom_03", "label": "Éducation" }
+  {
+    "id": 1,
+    "code": "culture",
+    "label": "Culture"
+  },
+  {
+    "id": 2,
+    "code": "transport",
+    "label": "Transports"
+  },
+  {
+    "id": 3,
+    "code": "education",
+    "label": "Éducation"
+  },
+  {
+    "id": 4,
+    "code": "emploi",
+    "label": "Emploi"
+  },
+  {
+    "id": 5,
+    "code": "environnement",
+    "label": "Environnement"
+  },
+  {
+    "id": 6,
+    "code": "numerique",
+    "label": "Numérique"
+  },
+  {
+    "id": 7,
+    "code": "sante",
+    "label": "Santé"
+  },
+  {
+    "id": 8,
+    "code": "securite",
+    "label": "Sécurité"
+  },
+  {
+    "id": 9,
+    "code": "sport",
+    "label": "Sport"
+  }
 ]
