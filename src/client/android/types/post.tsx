@@ -1,5 +1,6 @@
 // Definition of the Post interface
 interface Post{
+    uuid: string;
     post_id: string;
     author_id: string;
     author_username: string;

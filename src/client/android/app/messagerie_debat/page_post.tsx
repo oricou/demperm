@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, FlatList, TouchableOpacity, Text } from "react-native";
 import Post from "@/types/post";
-import PostComponent from "../../components/PostComponent";
+import PostComponent from "@/components/PostComponent";
 
 
 type Props = {

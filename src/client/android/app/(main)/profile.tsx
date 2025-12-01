@@ -20,10 +20,62 @@ interface UserProfileData {
 
 // Simulations des données pour tester l'affichage (à remplacer par l'API pour les posts)
 const dummyPosts: Post[] = [
-    { uuid: '1', title: 'This is a title but loooonger', content: 'This is the body of the post with only text on it, it is smaller than the one before.', picture: null, timestamp: new Date(), ownerId: 101, alias: 'Moi', theme: 'Politique', likes: 3, comments: [], },
-    { uuid: '2', title: 'Un post avec une image', content: 'Regardez cette belle image ci-dessous.', picture: 'https://via.placeholder.com/150', timestamp: new Date(), ownerId: 101, alias: 'Moi', theme: 'Ecologie', likes: 12, comments: [], },
-    { uuid: '3', title: 'Poste 3', content: 'Regardez encore un post', picture: null, timestamp: new Date(), ownerId: 101, alias: 'Moi', theme: 'Ecologie', likes: 13, comments: [], },
-    { uuid: '4', title: 'Un post avec une image', content: 'Regardez cette belle image ci-dessous.', picture: 'https://via.placeholder.com/150', timestamp: new Date(), ownerId: 101, alias: 'Moi', theme: 'Ecologie', likes: 2, comments: [], }
+    {
+        post_id: '1',
+        author_id: 'e4597bc9-960c-4d4f-812b-c51504004005',
+        author_username: 'Alice',
+        subforum_id: '2',
+        title: '1er Post',
+        content: '1er post content',
+        content_signature: 'my_signature',
+        like_count: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        uuid: '423e4567-e89b-12d3-a456-426614174000'
+    },
+    {
+        post_id: '2',
+        author_id: 'e4597bc9-960c-4d4f-812b-c51504004005',
+        author_username: 'Alice',
+        subforum_id: '2',
+        title: '2e Post',
+        content: '2e post content',
+        content_signature: 'my_signature',
+        like_count: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        uuid: '323e4567-e89b-12d3-a456-426614174000'
+    },
+    {
+        post_id: '3',
+        author_id: 'e4597bc9-960c-4d4f-812b-c51504004005',
+        author_username: 'Alice',
+        subforum_id: '2',
+        title: '3e Post',
+        content: '3e post content',
+        content_signature: 'my_signature',
+        like_count: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        uuid: '223e4567-e89b-12d3-a456-426614174000'
+    },
+    {
+        post_id: '4',
+        author_id: 'e4597bc9-960c-4d4f-812b-c51504004005',
+        author_username: 'Alice',
+        subforum_id: '2',
+        title: '4e Post',
+        content: '4e post content',
+        content_signature: 'my_signature',
+        like_count: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        uuid: '123e4567-e89b-12d3-a456-426614174000'
+    }
 ];
 
 export default function ProfileScreen() {

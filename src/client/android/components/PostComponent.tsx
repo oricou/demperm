@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, FlatList, Modal, TouchableOpacity } from "react-native";
-import ProfileScreen from "../app/profile";
+import ProfileScreen from "@/app/(main)/profile";
 import ThemePage from "../app/messagerie_debat/theme";
 import TopBar from "./TopBar";
 import BottomBar from "./BottomBar";
@@ -53,7 +53,7 @@ const PostComponent: React.FC<Props> = ({ post }) => {
       <View style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.leftColumn}>
-          <ProfileAvatar size={40} />
+          <ProfileAvatar size={40} imageUrl={undefined} />
           <TouchableOpacity onPress={() => setShowProfile(true)}>
             <Text style={styles.alias}>{post.author_username}</Text>
           </TouchableOpacity>
