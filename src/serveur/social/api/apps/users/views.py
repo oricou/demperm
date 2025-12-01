@@ -4,6 +4,7 @@ Views for users app.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -12,26 +13,105 @@ from common.permissions import IsAuthenticated, IsNotBanned
 from common.rate_limiters import rate_limit_general
 from common.exceptions import NotFoundError, ValidationError, ConflictError
 from common.utils import get_client_ip
+from apps.custom_auth.authentication import FirebaseAuthentication
 from .serializers import (
     UserSerializer, UserPublicSerializer, UpdateUserProfileSerializer,
-    UpdateUserSettingsSerializer, UserSearchSerializer, UserBulkSerializer
+    UpdateUserSettingsSerializer, UserSearchSerializer, UserBulkSerializer,
+    CreateUserSerializer
 )
 
 
 class CurrentUserView(APIView):
-    """Get current user profile."""
+    """Get current user profile. Returns null if user doesn't exist in database yet."""
     
-    permission_classes = [IsAuthenticated, IsNotBanned]
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = []  # No permission required, just authentication
     
     @swagger_auto_schema(
-        operation_description="Get current user's full profile",
-        responses={200: UserSerializer}
+        operation_description="Get current user's full profile. Returns null if user not found in database.",
+        responses={
+            200: UserSerializer,
+            204: "User authenticated but not found in database (returns null)"
+        }
     )
     @rate_limit_general
     def get(self, request):
-        """Get current user profile."""
-        profile = UserService.get_current_user_profile(str(request.user.user_id))
-        return Response(profile, status=status.HTTP_200_OK)
+        """Get current user profile or null if not exists."""
+        # If authentication succeeded, user exists
+        if request.user and hasattr(request.user, 'user_id'):
+            profile = UserService.get_current_user_profile(str(request.user.user_id))
+            return Response(profile, status=status.HTTP_200_OK)
+        
+        # Firebase authenticated but user not in database
+        if hasattr(request, 'firebase_uid'):
+            return Response(None, status=status.HTTP_200_OK)
+        
+        # No authentication
+        return Response(
+            {'error': {'code': 'UNAUTHORIZED', 'message': 'Authentication required'}},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+class CreateUserView(APIView):
+    """Create a new user from Firebase authentication."""
+    
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = []  # No permission required, just Firebase authentication
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Support file upload
+    
+    @swagger_auto_schema(
+        operation_description="Create a new user account after Firebase authentication. Supports multipart/form-data for profile picture upload.",
+        request_body=CreateUserSerializer,
+        responses={
+            201: UserSerializer,
+            400: "Validation error",
+            401: "Not authenticated with Firebase",
+            409: "User already exists"
+        }
+    )
+    @rate_limit_general
+    def post(self, request):
+        """Create new user from Firebase auth.
+        
+        Expected from JWT: firebase_uid, email
+        Expected from request body: username (required), profile_picture (blob), bio, location, privacy (boolean)
+        """
+        # Check Firebase authentication
+        if not hasattr(request, 'firebase_uid'):
+            return Response(
+                {'error': {'code': 'UNAUTHORIZED', 'message': 'Firebase authentication required'}},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # User already exists in database
+        if request.user and hasattr(request.user, 'user_id'):
+            return Response(
+                {'error': {'code': 'CONFLICT', 'message': 'User already registered'}},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        serializer = CreateUserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            user = UserService.create_user_from_firebase(
+                firebase_uid=request.firebase_uid,
+                email=request.firebase_email,
+                **serializer.validated_data
+            )
+            profile = UserService.get_current_user_profile(str(user.user_id))
+            return Response(profile, status=status.HTTP_201_CREATED)
+        except ConflictError as e:
+            return Response(
+                {'error': {'code': 'CONFLICT', 'message': str(e)}},
+                status=status.HTTP_409_CONFLICT
+            )
+        except ValidationError as e:
+            return Response(
+                {'error': {'code': 'VALIDATION_ERROR', 'message': str(e)}},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class UpdateCurrentUserView(APIView):
