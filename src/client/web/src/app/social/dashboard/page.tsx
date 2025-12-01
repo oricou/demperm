@@ -1,11 +1,5 @@
-import { ChangeEvent, FormEvent, useCallback, useState } from 'react'
-import {
-  profileSelf,
-  type Membership,
-  type Preference,
-  type ProfileInfoItem,
-  type InfoField
-} from '../../../data/mockData'
+import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
+import { getProfileSelf } from '../../../domains/social/api'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { PreferencesPanel } from '../../../components/composite/PreferencesPanel'
@@ -15,20 +9,72 @@ import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 
+type PreferenceOption = { label: string; value: string }
+type Preference = { id: string; label: string; value: string; editable?: boolean; options?: PreferenceOption[]; actionHref?: string }
+type InfoField = 'Prénom' | 'Nom' | 'Pseudo' | 'Date de naissance' | 'Email' | 'Zone impliquée'
+type ProfileInfoItem = { label: InfoField; value: string }
+type Membership = { id: string; title: string; start: string; end?: string }
+type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
+
+/**
+ * Page tableau de bord social (profil personnel mocké).
+ * Charge le profil via le mock, permet de simuler édition et affichage.
+ */
 export default function SocialDashboardPage() {
-  const [preferences, setPreferences] = useState<Preference[]>(profileSelf.preferences)
-  const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>(profileSelf.info)
-  const [memberships, setMemberships] = useState<Membership[]>(profileSelf.memberships)
+  const [preferences, setPreferences] = useState<Preference[]>([])
+  const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
+  const [memberships, setMemberships] = useState<Membership[]>([])
+  const [posts, setPosts] = useState<PostItem[]>([])
   const [profile, setProfile] = useState({
-    fullName: profileSelf.fullName,
-    role: profileSelf.role,
-    location: profileSelf.location,
-    avatarUrl: profileSelf.avatarUrl,
-    bio: profileSelf.bio
+    fullName: '',
+    role: '',
+    location: '',
+    avatarUrl: '',
+    bio: ''
   })
+  const [stats, setStats] = useState<{ label: string; value: string }[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [isMembershipModalOpen, setMembershipModalOpen] = useState(false)
   const [newMembership, setNewMembership] = useState({ title: '', start: '', end: '' })
+
+  useEffect(() => {
+    async function loadProfile() {
+      const data = await getProfileSelf('user-main')
+      setPreferences(buildPreferences(data.preferences))
+      setInfoItems(buildInfoItems(data.user))
+      setMemberships(
+        data.memberships.map((membership) => ({
+          id: membership.id,
+          title: membership.title,
+          start: membership.start_date,
+          end: membership.end_date
+        }))
+      )
+      setPosts(
+        data.posts.map((post) => ({
+          id: post.id,
+          title: post.titre,
+          excerpt: post.extrait,
+          createdAt: post.created_at,
+          comments: post.nb_commentaires,
+          hasAttachments: post.has_attachments
+        }))
+      )
+      setStats([
+        { label: 'Abonnés', value: data.stats.nb_abonnes.toString() },
+        { label: 'Abonnements', value: data.stats.nb_abonnements.toString() }
+      ])
+      setProfile({
+        fullName: `${data.user.first_name} ${data.user.last_name}`,
+        role: data.user.role,
+        location: data.user.zone_impliquee,
+        avatarUrl: data.user.avatar_url,
+        bio: data.user.bio
+      })
+    }
+
+    loadProfile()
+  }, [])
 
   function handlePreferenceChange(id: string, value: string) {
     setPreferences((prev) => prev.map((pref) => (pref.id === id ? { ...pref, value } : pref)))
@@ -95,7 +141,7 @@ export default function SocialDashboardPage() {
         role={profile.role}
         location={profile.location}
         avatarUrl={profile.avatarUrl}
-        stats={profileSelf.stats}
+        stats={stats}
         editable
         onEdit={toggleEditing}
         editLabel={isEditing ? 'Valider les changements' : 'Mettre à jour le profil'}
@@ -111,9 +157,7 @@ export default function SocialDashboardPage() {
             </CardHeader>
             <CardContent>
               {memberships.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
-                  Ajoutez vos mandats lorsqu’ils seront disponibles.
-                </div>
+                <EmptyCard />
               ) : (
                 <table className="w-full text-left text-sm text-muted">
                   <tbody>
@@ -146,9 +190,23 @@ export default function SocialDashboardPage() {
               <CardTitle>Posts</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">
-                Aucun post publié pour le moment. Le flux affichera les contributions de l'utilisateur (slider si nécessaire).
-              </div>
+              {posts.length === 0 ? (
+                <EmptyCard />
+              ) : (
+                <div className="space-y-3">
+                  {posts.map((post) => (
+                    <article key={post.id} className="rounded-2xl border border-border bg-background-soft px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
+                        <p>{post.createdAt}</p>
+                        <p>{post.hasAttachments ? 'Pièces jointes' : '—'}</p>
+                      </div>
+                      <h3 className="text-base font-semibold text-foreground">{post.title}</h3>
+                      <p className="text-sm text-muted">{post.excerpt}</p>
+                      <p className="pt-1 text-xs text-muted">{post.comments} commentaires</p>
+                    </article>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -203,6 +261,73 @@ export default function SocialDashboardPage() {
   )
 }
 
+/** Composant d'état vide générique pour les sections profil. */
+function EmptyCard() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
+      Données à venir dès la connexion à l'API.
+    </div>
+  )
+}
+
+/** Récupère la valeur d'une info par son libellé. */
 function getInfoValue(items: ProfileInfoItem[], label: InfoField) {
   return items.find((item) => item.label === label)?.value ?? ''
+}
+
+/** Construit la liste de préférences à partir du payload API mocké. */
+function buildPreferences(preferences: { statut_compte: string; statut_vote: string; bloquer_les_voix: boolean }): Preference[] {
+  return [
+    {
+      id: 'pref-1',
+      label: 'Statut du compte',
+      value: preferences.statut_compte,
+      editable: true,
+      options: [
+        { label: 'Public', value: 'Public' },
+        { label: 'Privé', value: 'Privé' }
+      ]
+    },
+    {
+      id: 'pref-2',
+      label: 'Statut vote',
+      value: preferences.statut_vote,
+      editable: true,
+      options: [
+        { label: 'Public', value: 'Public' },
+        { label: 'Privé', value: 'Privé' }
+      ]
+    },
+    {
+      id: 'pref-3',
+      label: 'Bloquer les voix',
+      value: preferences.bloquer_les_voix ? 'Oui' : 'Non',
+      editable: true,
+      options: [
+        { label: 'Non', value: 'Non' },
+        { label: 'Oui', value: 'Oui' }
+      ]
+    },
+    { id: 'pref-4', label: 'Gérer mes communautés', value: 'Accès rapide', actionHref: '/forum' },
+    { id: 'pref-5', label: 'Gérer mes amitiés', value: 'Ouvert', actionHref: '/messages' }
+  ]
+}
+
+/** Construit les infos affichables (fiche info) depuis un user mock. */
+function buildInfoItems(user: {
+  first_name: string
+  last_name: string
+  pseudo: string
+  birth_date: string
+  email: string
+  zone_impliquee: string
+}): ProfileInfoItem[] {
+  return [
+    { label: 'Prénom', value: user.first_name },
+    { label: 'Nom', value: user.last_name },
+    { label: 'Pseudo', value: user.pseudo },
+    { label: 'Date de naissance', value: user.birth_date },
+    { label: 'Email', value: user.email },
+    { label: 'Zone impliquée', value: user.zone_impliquee }
+  ]
 }
