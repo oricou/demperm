@@ -3,8 +3,8 @@ import { View, StyleSheet } from 'react-native';
 import { Slot } from 'expo-router'; // Slot renders the current page
 
 // Import your persistent components
-import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import TopBar from '@/components/TopBar';
+import BottomBar from '@/components/BottomBar';
 
 export default function RootLayout() {
   return (

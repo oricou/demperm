@@ -1,32 +1,12 @@
-# demperm-android
-La partie client Android de la démocratie permanente. Projet de Mineure Géopolitique de l'Internet 
+# Welcome to your Expo app 👋
 
-## L'équipe
-Responsable : Hugo Saison
-Dev : 
-    Clément Rehs
-    Flavien Hallier
-    Paloma Martin
-    Mathéo Kiffer
-    Hédelin Ropital
-    Timothee Viossat
-    Antoine Havard
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-# Projet
-Application mobile développée en React Native et Expo.
-
-## Comment lancer l'application
-## 1. Prérequis
-
-* node.js: Assurez-vous d'avoir Node.js installé.
-* Expo Go: Installez l'application "Expo Go" sur votre téléphone.
-
-## 2. Lancer l'app
+## Get started
 
 1. Install dependencies
 
    ```bash
-   cd DemPerm
    npm install
    ```
 
@@ -35,15 +15,6 @@ Application mobile développée en React Native et Expo.
    ```bash
    npx expo start
    ```
-
-3.  Scannez le QR Code :
-    Prenez votre application ExpoGo sur votre telephone et scanner le QRcode qfficher dans votre terminal
-
-L'application va se compiler et s'ouvrir automatiquement sur votre téléphone.
-
-**ATTENTION !!!!! WARNING !!!!!**
-Si vous utilisez WSL cela pourrait ne pas marcher, probleme entre le lien que fourni WSL et lacces que vous y avez avec votre telephone.
-
 
 In the output, you'll find options to open the app in a
 
@@ -64,10 +35,24 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
+## Learn more
+
+To learn more about developing your project with Expo, look at the following resources:
+
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+
+## Join the community
+
+Join our community of developers creating universal apps.
+
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
 
 ## Architecture
 
-./
+DemPerm/
 ├── app/                          # ROUTES - Navigation de l'app
 |    ├── (pages)/                 # Pages de l'appliactions
 |    └── index.tsx                # Pages racines (arrivee au lancement de l'appli)

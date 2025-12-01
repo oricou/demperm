@@ -17,7 +17,7 @@ export default function ChatPage() {
         style={styles.itemContainer}
         onPress={() => {
           router.push({
-            pathname: "/page_private_message",
+            pathname: "./page_private_message",
             params: {
               withId: item.with.id,
               username: item.with.username,
