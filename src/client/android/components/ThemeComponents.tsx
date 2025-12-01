@@ -22,7 +22,7 @@ const ThemeComponent: React.FC<Props> = ({ theme }) => {
 
         <View style={theme_style.starContainer}>
           <Image source={require('@/public/images/star.png')} style={theme_style.starIcon} />
-          <Text style={theme_style.starText}>{theme.likes}</Text>
+          <Text style={theme_style.starText}>{theme.member_count}</Text>
         </View>
       </View>
     </View>
