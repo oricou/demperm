@@ -1,0 +1,52 @@
+[
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "publishVotes": false,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440002",
+    "publishVotes": true,
+    "threshold": 50
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440003",
+    "publishVotes": true,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440004",
+    "publishVotes": true,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440005",
+    "publishVotes": true,
+    "threshold": 100
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440006",
+    "publishVotes": false,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440007",
+    "publishVotes": true,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440008",
+    "publishVotes": false,
+    "threshold": -1
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440009",
+    "publishVotes": true,
+    "threshold": 20
+  },
+  {
+    "userId": "550e8400-e29b-41d4-a716-446655440010",
+    "publishVotes": true,
+    "threshold": -1
+  }
+]
