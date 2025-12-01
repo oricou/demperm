@@ -4,6 +4,8 @@ import ChatPage from './page_chat';
 import SubMenuComponent from '@/components/SubMenuComponent';
 import ThemesPage from './themes_list';
 import Theme from '@/types/theme';
+import { get_forums } from './call_api';
+
 
 
 export default function ChatDebatPage() {
@@ -12,20 +14,14 @@ export default function ChatDebatPage() {
 
   useEffect(() => {
     let mounted = true;
-    // Fetch forums/themes from backend
-    const API = 'http://localhost:8000/api/v1';
-    fetch(`${API}/forums/`)
-      .then((res) => res.json())
+    get_forums()
       .then((data) => {
-        if (!mounted) return;
-        // Backend may return { results: [...] } or an array directly
-        const list = Array.isArray(data) ? data : data?.results ?? data?.items ?? [];
-        setThemes(list);
+        if (mounted) setThemes(data);
+        console.log('Fetched forums:', data);
       })
       .catch((err) => {
-        console.warn('Failed to load themes:', err);
+        console.error('Failed to load forums', err);
       });
-
     return () => {
       mounted = false;
     };
