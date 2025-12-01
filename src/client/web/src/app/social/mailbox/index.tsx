@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getMailbox } from '../../../domains/social/api'
 import { SidebarList } from '../../../components/composite/SidebarList'
 import { MessageBubble } from '../../../components/composite/MessageBubble'
@@ -16,6 +17,8 @@ export default function MessagesPage() {
   const [threads, setThreads] = useState<ThreadItem[]>([])
   const [messagesByThread, setMessagesByThread] = useState<Record<string, Message[]>>({})
   const [activeConversation, setActiveConversation] = useState<string | null>(null)
+  const [userSearch, setUserSearch] = useState('')
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function loadMailbox() {
@@ -52,6 +55,13 @@ export default function MessagesPage() {
     return messagesByThread[activeConversation] ?? []
   }, [activeConversation, messagesByThread])
 
+  /** Redirige vers le profil public du thread sélectionné (mock id = thread id). */
+  function handleOpenProfile(threadId: string | null) {
+    if (!threadId) return
+    // Hypothèse : l'id du thread correspond à l'id utilisateur (mock). Ajuster si besoin.
+    navigate(`/profil/public?userId=${encodeURIComponent(threadId)}`)
+  }
+
   const hasThreads = threads.length > 0
 
   return (
@@ -74,8 +84,20 @@ export default function MessagesPage() {
 
       <section className="flex min-h-[75vh] flex-col rounded-2xl border border-border bg-white shadow-sm">
         <header className="border-b border-border px-6 py-5">
-          <h2 className="text-lg font-semibold text-foreground">{getConversationTitle(activeConversation, threads)}</h2>
-          <p className="text-sm text-muted">Conversation chiffrée</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">{getConversationTitle(activeConversation, threads)}</h2>
+              <p className="text-sm text-muted">Conversation chiffrée</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleOpenProfile(activeConversation)}
+              disabled={!activeConversation}
+            >
+              Voir le profil
+            </Button>
+          </div>
         </header>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
@@ -95,11 +117,26 @@ export default function MessagesPage() {
           )}
         </div>
 
-        <footer className="mt-auto flex items-center gap-3 border-t border-border px-6 py-5">
-          <Input className="flex-1" placeholder="Écrire un message" aria-label="Composer un message" />
-          <Button>Envoyer</Button>
-        </footer>
-      </section>
+      <footer className="mt-auto flex items-center gap-3 border-t border-border px-6 py-5">
+        <Input className="flex-1" placeholder="Écrire un message" aria-label="Composer un message" />
+        <Button>Envoyer</Button>
+      </footer>
+    </section>
+
+    <aside className="mt-2 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-foreground">Ajouter un contact</h3>
+      <div className="mt-3 space-y-2">
+        <Input
+          value={userSearch}
+          onChange={(event) => setUserSearch(event.target.value)}
+          placeholder="Rechercher un utilisateur"
+        />
+        <Button variant="outline" className="w-full" disabled>
+          Ajouter (backend à venir)
+        </Button>
+        <p className="text-xs text-muted">Ajout aux contacts sera branché quand le backend sera prêt.</p>
+      </div>
+    </aside>
     </div>
   )
 }
