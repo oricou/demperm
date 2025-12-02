@@ -1,34 +1,46 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { isAuthenticated, clearCredentials } from './shared/auth'
+import Login from './app/auth/login'
+import { AppShell } from './components/layout/AppShell'
+import ProfileSelfPage from './app/social/dashboard/page'
+import PublicProfilePage from './app/social/users/id'
+import VoteDashboardPage from './app/vote/page'
+import ForumHomePage from './app/social/groups'
+import MessagesPage from './app/social/mailbox'
+
+function AppLayout() {
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  )
+}
+
+function RequireAuth({ children }) {
+  const ok = typeof window !== 'undefined' && isAuthenticated()
+  if (!ok) {
+    if (typeof window !== 'undefined') clearCredentials()
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <Routes>
+      <Route path="/" element={<Navigate to="/profil" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/login" element={<Login />} />
+      <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+        <Route path="/profil" element={<ProfileSelfPage />} />
+        <Route path="/profil/public" element={<PublicProfilePage />} />
+        <Route path="/vote" element={<VoteDashboardPage />} />
+        <Route path="/forum" element={<ForumHomePage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/profil" replace />} />
+    </Routes>
   )
 }
 

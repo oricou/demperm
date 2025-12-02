@@ -1,0 +1,731 @@
+openapi: 3.1.0
+info:
+  title: Vote API
+  version: "1.0.0"
+  description: API du serveur de vote
+
+servers:
+  - url: http://127.0.0.1:8080/api/v1
+
+security:
+  - bearerAuth: [ ]
+
+tags:
+  - name: "Votes"
+  - name: "Preferences"
+  - name: "Statistics"
+  - name: "Results"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserMinimal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+      required:
+        - id
+
+    VoteRequest:
+      type: object
+      properties:
+        targetUserId:
+          type: string
+          format: uuid
+        domain:
+          type: string
+      required:
+        - targetUserId
+        - domain
+
+    Vote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID du vote
+        voterId:
+          type: string
+          format: uuid
+          description: ID de l'utilisateur qui a voté
+        targetUserId:
+          type: string
+          format: uuid
+          description: ID de l'utilisateur qui reçoit le vote
+        domain:
+          type: string
+          description: 'Domaine du vote (ex: "design", "comms", "tech")'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - voterId
+        - targetUserId
+        - domain
+        - createdAt
+
+    ReceivedVotes:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        total:
+          type: integer
+        byDomain:
+          type: object
+          additionalProperties:
+            type: integer
+        usersByDomain:
+          type: object
+          additionalProperties:
+            type: string
+            format: uuid
+          description: "Les id publics d'électeurs par domaine"
+      required:
+        - userId
+        - total
+        - byDomain
+        - usersByDomain
+
+    VoteCountSummary:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+      required:
+        - date
+        - count
+
+    DailyVotesEvolutionResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoteCountSummary'
+        delta:
+          type: integer
+          description: Variation par rapport à la journée précédente (peut être négative)
+      required:
+        - userId
+        - daily
+        - delta
+
+    MonthlyVotesEvolutionResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        monthly:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+              month:
+                type: integer
+              count:
+                type: integer
+            required:
+              - year
+              - month
+              - count
+      required:
+        - userId
+        - monthly
+
+    # PublicationSetting:
+    #   type: object
+    #   properties:
+    #     publishVotes:
+    #       type: boolean
+    #       description: L'utilisateur accepte-t-il la publication automatique de son nombre de voix
+    #     threshold:
+    #       type: integer
+    #       description: Nombre de voix au-delà duquel la publication est automatique
+    #   required:
+    #     - userId
+    #     - publishVotes
+    #     - threshold
+
+    PublicationSetting:
+      type: object
+      properties:
+        userId:
+          type: string
+        publishVotes:
+          type: boolean
+          description: L'utilisateur accepte-t-il la publication automatique de son nombre de voix
+      required: [ userId, publishVotes ]
+    
+    ThresholdSetting:
+      type: object
+      properties:
+        userId:
+          type: string
+        threshold:
+          type: integer
+          description: Nombre de voix au-delà duquel la publication est automatique
+      required: [ userId, threshold ]
+
+    VoteResult:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        domain:
+          type: string
+        count:
+          type: integer
+        elected:
+          type: boolean
+        electedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - domain
+        - count
+        - elected
+
+    ElectionSeniority:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        electedAt:
+          type: string
+          format: date-time
+        seniorityDays:
+          type: integer
+      required:
+        - userId
+        - electedAt
+        - seniorityDays
+
+    DailyVotesByDomain:
+      type: array
+      items:
+        type: object
+        properties:
+          domain:
+            type: string
+          users:
+            type: array
+            items:
+              $ref: '#/components/schemas/DailyVotes'
+        required:
+          - domain
+          - users
+
+    DailyVotes:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        votes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoteCountSummary'
+      required:
+        - userId
+        - votes
+      description: "Liste des votes pour l'utilisateur, triée par date"
+
+  responses:
+    Unauthorized:
+      description: Jeton manquant ou invalide
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+paths:
+
+  # ---------- Voting endpoints ----------
+  /votes:
+    post:
+      tags:
+        - Votes
+      summary: Ajouter un vote
+      description: Voter pour un utilisateur dans un domaine donné.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteRequest'
+      responses:
+        '201':
+          description: Vote enregistré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vote'
+        '400':
+          description: Requête invalide
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /votes/{domain}:
+    delete:
+      tags:
+        - Votes
+      summary: Supprimer son vote
+      description: Supprime un vote fait par l'utilisateur (si autorisé).
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Vote supprimé
+        '404':
+          description: Vote introuvable
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /votes/by-voter/{voterId}:
+    get:
+      tags:
+        - Votes
+      summary: Obtenir la liste des personnes pour qui un utilisateur a voté
+      description: 'Récupère les votes émis par un user (option: filtrer par domaine).'
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: voterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: domain
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Filtre facultatif par domaine
+      responses:
+        '200':
+          description: Liste des votes effectués par l'utilisateur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vote'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /votes/by-voter/me:
+    get:
+      tags:
+        - Votes
+      summary: Obtenir la liste des personnes pour qui l'utilisateur authentifié a voté
+      description: 'Récupère les votes émis par soi (option: filtrer par domaine).'
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: domain
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Filtre facultatif par domaine
+      responses:
+        '200':
+          description: Liste des votes effectués par l'utilisateur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vote'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /votes/for-user/{userId}:
+    get:
+      tags:
+        - Votes
+      summary: Récupère les votes reçus par un utilisateur
+      description: "Retourne le nombre de votes reçus (option: breakdown par domaine) et si l'utilisateur accepte la publication."
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: domain
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compteur de votes du user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceivedVotes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /votes/for-user/me:
+    get:
+      tags:
+        - Votes
+      summary: Récupère les votes reçus par un utilisateur
+      description: "Retourne le nombre de votes reçus (option: breakdown par domaine) et si l'utilisateur accepte la publication."
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: domain
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compteur de votes du user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceivedVotes'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # /votes/check:
+  #   get:
+  #     tags:
+  #       - Votes
+  #     summary: Vérifier si un vote a été pris en compte
+  #     description: Permet au voter ou au target de vérifier l'état d'un vote (idempotence / déduplication).
+  #     security:
+  #       - bearerAuth: [ ]
+  #     parameters:
+  #       - name: domain
+  #         in: query
+  #         required: true
+  #         schema:
+  #           type: string
+  #     responses:
+  #       '200':
+  #         description: État du vote
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 validated:
+  #                   type: boolean
+  #                 vote:
+  #                   $ref: '#/components/schemas/Vote'
+  #               required:
+  #                 - validated
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  # ---------- Stats endpoints ----------
+  # /stats/votes/daily/{userId}:
+  #   get:
+  #     tags:
+  #       - Statistics
+  #     summary: Évolution journalière des votes reçus
+  #     description: "Retourne les votes reçus par jour (+ delta comparatif jour précédent). Optionnel : endpoint mensuel pour suivi."
+  #     security:
+  #       - bearerAuth: [ ]
+  #     parameters:
+  #       - name: userId
+  #         in: path
+  #         required: true
+  #         schema:
+  #           type: string
+  #           format: uuid
+  #       - name: days
+  #         in: query
+  #         schema:
+  #           type: integer
+  #           default: 30
+  #           description: Nombre de jours à retourner
+  #       - name: includeMonthly
+  #         in: query
+  #         schema:
+  #           type: boolean
+  #           default: false
+  #           description: Indique si l'on doit aussi renvoyer un suivi mensuel
+  #     responses:
+  #       '200':
+  #         description: Évolution des votes journalières (et optionnellement mensuelle)
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/DailyVotesEvolutionResponse'
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  # /stats/votes/monthly/{userId}:
+  #   get:
+  #     tags:
+  #       - Statistics
+  #     summary: Évolution mensuelle des votes reçus
+  #     description: Retourne la série mensuelle (utile pour graphiques long terme).
+  #     security:
+  #       - bearerAuth: [ ]
+  #     parameters:
+  #       - name: userId
+  #         in: path
+  #         required: true
+  #         schema:
+  #           type: string
+  #           format: uuid
+  #       - name: months
+  #         in: query
+  #         schema:
+  #           type: integer
+  #           default: 12
+  #     responses:
+  #       '200':
+  #         description: Suivi mensuel
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/MonthlyVotesEvolutionResponse'
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  # /stats/chart:
+  #   get:
+  #     tags:
+  #       - Statistics
+  #     summary: Évolution du nombre de voix sur 30 jours
+  #     description: Retourne les données des scores des 10 utilisateurs avec le plus de voix par domaine sur les 30 derniers jours
+  #     security:
+  #       - bearerAuth: [ ]
+  #     parameters:
+  #       - name: domain
+  #         in: query
+  #         required: false
+  #         schema:
+  #           type: string
+  #     responses:
+  #       '200':
+  #         description: Statistiques mensuelles
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/DailyVotesByDomain'
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  # ---------- Publication / Confidentialité ----------
+  # /publication:
+  #   get:
+  #     tags:
+  #       - Preferences
+  #     summary: Récupérer les préférences de publication d'un utilisateur
+  #     security:
+  #       - bearerAuth: [ ]
+  #     responses:
+  #       '200':
+  #         description: Préférences de publication
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/PublicationSetting'
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  #   put:
+  #     tags:
+  #       - Preferences
+  #     summary: Mettre à jour les préférences de publication de l'utilisateur
+  #     description: L'utilisateur accepte ou refuse la publication automatique de son nombre de voix / votes et active une valeur max de voix qu'il peut recevoir (-1 => pas de limite).
+  #     security:
+  #       - bearerAuth: [ ]
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: '#/components/schemas/PublicationSetting'
+  #     responses:
+  #       '200':
+  #         description: Paramètres mis à jour
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/PublicationSetting'
+  #       '401':
+  #         $ref: '#/components/responses/Unauthorized'
+
+  /publication/{userId}:
+    get:
+      tags:
+        - Preferences
+      summary: Récupérer les paramètres de publication d'un utilisateur
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paramètres de publication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationSetting'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Preferences
+      summary: Mettre à jour l'option d'accepter ou non la publication
+      description: L'utilisateur accepte ou refuse la publication automatique de son nombre de voix / votes.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                publishVotes:
+                  type: boolean
+              required: [ publishVotes ]
+      responses:
+        '200':
+          description: Paramètres mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationSetting'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /threshold/{userId}:
+    get:
+      tags:
+        - Preferences
+      summary: Récupérer le palier de publication de l'utilisateur
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Palier actuel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThresholdSetting'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Preferences
+      summary: Définir la limite (palier) de voix acceptée
+      description: Définir le nombre maximum de voix avant que la publication ne devienne automatique (si activée).
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThresholdSetting'
+      responses:
+        '200':
+          description: Palier mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThresholdSetting'
+        '400':
+          description: Valeur invalide
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------- Résultats & élus ----------
+  /results:
+    get:
+      tags:
+        - Results
+      summary: Récupérer les résultats des votes
+      description: Retourne le classement / total des votes par domaine ou global.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: domain
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: top
+          in: query
+          schema:
+            type: integer
+            default: 100
+            description: Nombre de top résultats à retourner
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date
+            description: Retourner résultats depuis cette date
+      responses:
+        '200':
+          description: Résultats agrégés
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VoteResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
