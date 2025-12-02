@@ -43,7 +43,7 @@ class CreatePostView(APIView):
             
             return Response({
                 'post_id': str(post.post_id),
-                'author_id': str(post.author_id),
+                'author_id': str(post.user_id),
                 'subforum_id': str(post.subforum_id),
                 'title': post.title,
                 'content': post.content,
@@ -77,8 +77,8 @@ class PostDetailView(APIView):
             
             return Response({
                 'post_id': str(post.post_id),
-                'author_id': str(post.author_id),
-                'author_username': post.author.username,
+                'author_id': str(post.user_id),
+                'author_username': post.user.username,
                 'subforum_id': str(post.subforum_id),
                 'title': post.title,
                 'content': post.content,
@@ -235,8 +235,8 @@ class FeedView(APIView):
 
         data = [{
             'post_id': str(post.post_id),
-            'author_id': str(post.author_id),
-            'author_username': post.author.username,
+            'author_id': str(post.user_id),
+            'author_username': post.user.username,
             'subforum_id': str(post.subforum_id),
             'title': post.title,
             'content': post.content[:200] + '...' if len(post.content) > 200 else post.content,
@@ -271,8 +271,8 @@ class DiscoverView(APIView):
 
         data = [{
             'post_id': str(post.post_id),
-            'author_id': str(post.author_id),
-            'author_username': post.author.username,
+            'author_id': str(post.user_id),
+            'author_username': post.user.username,
             'subforum_id': str(post.subforum_id),
             'title': post.title,
             'content': post.content[:200] + '...' if len(post.content) > 200 else post.content,
