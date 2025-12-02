@@ -12,7 +12,7 @@ def test_create_vote_unauthorized():
         "domain": "tech",
     }
 
-    response = client.post("/votes", payload, format="json")
+    response = client.post("/api/votes", payload, format="json")
 
     assert response.status_code == 403
 
@@ -70,7 +70,7 @@ def test_create_vote_success_and_persisted_in_neo4j():
     auth_header = f"Bearer {voter_id}"
 
     response = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -128,7 +128,7 @@ def test_create_vote_only_override_vote():
     auth_header = f"Bearer {voter_id}"
 
     response1 = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -136,7 +136,7 @@ def test_create_vote_only_override_vote():
     assert response1.status_code == 201
 
     response2 = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -163,7 +163,7 @@ def test_create_vote_only_override_vote():
 def test_delete_vote_unauthorized():
     client = APIClient()
 
-    response = client.delete("/votes/tech", format="json")
+    response = client.delete("/api/votes/tech", format="json")
 
     assert response.status_code == 403
 
@@ -180,7 +180,7 @@ def test_delete_vote_not_found():
     auth_header = f"Bearer {voter_id}"
 
     response = client.delete(
-        f"/votes/{domain}",
+        f"/api/votes/{domain}",
         format="json",
         HTTP_AUTHORIZATION=auth_header,
     )
@@ -204,7 +204,7 @@ def test_delete_vote_success_removes_relationship_in_neo4j():
     auth_header = f"Bearer {voter_id}"
 
     response_create = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -225,7 +225,7 @@ def test_delete_vote_success_removes_relationship_in_neo4j():
         assert record_before["rel_count"] == 1
 
     response_delete = client.delete(
-        f"/votes/{domain}",
+        f"/api/votes/{domain}",
         format="json",
         HTTP_AUTHORIZATION=auth_header,
     )
@@ -266,7 +266,7 @@ def test_get_received_votes_for_user_me_simple():
     }
 
     response1 = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter1_id}",
@@ -274,7 +274,7 @@ def test_get_received_votes_for_user_me_simple():
     assert response1.status_code == 201
 
     response2 = client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter2_id}",
@@ -284,7 +284,7 @@ def test_get_received_votes_for_user_me_simple():
     _validate_for_users([voter1_id, voter2_id, target_user_id])
 
     response_get = client.get(
-        "/votes/for-user/me",
+        "/api/votes/for-user/me",
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {target_user_id}",
     )
@@ -302,7 +302,7 @@ def test_get_received_votes_for_user_me_simple():
 
 def test_get_received_votes_for_user_by_id():
     """
-    Même scénario que précédent, mais via /votes/for-user/{userId}
+    Même scénario que précédent, mais via /api/votes/for-user/{userId}
     (et on peut appeler avec n'importe quel user authentifié).
     """
     client = APIClient()
@@ -322,13 +322,13 @@ def test_get_received_votes_for_user_by_id():
     }
 
     client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter1_id}",
     )
     client.post(
-        "/votes",
+        "/api/votes",
         payload,
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter2_id}",
@@ -337,7 +337,7 @@ def test_get_received_votes_for_user_by_id():
     _validate_for_users([voter1_id, voter2_id, target_user_id, caller_id])
 
     response_get = client.get(
-        f"/votes/for-user/{target_user_id}",
+        f"/api/votes/for-user/{target_user_id}",
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {caller_id}",
     )
@@ -368,7 +368,7 @@ def test_get_votes_by_voter_me_lists_all_votes():
     auth_header = f"Bearer {voter_id}"
 
     resp1 = client.post(
-        "/votes",
+        "/api/votes",
         payload1,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -378,7 +378,7 @@ def test_get_votes_by_voter_me_lists_all_votes():
     _validate_for_users([voter_id])
 
     resp2 = client.post(
-        "/votes",
+        "/api/votes",
         payload2,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -388,7 +388,7 @@ def test_get_votes_by_voter_me_lists_all_votes():
     _validate_for_users([voter_id])
 
     response_get = client.get(
-        "/votes/by-voter/me",
+        "/api/votes/by-voter/me",
         format="json",
         HTTP_AUTHORIZATION=auth_header,
     )
@@ -417,7 +417,7 @@ def test_get_votes_by_voter_with_domain_filter():
     _cleanup_neo4j_for_users(voter_id, target2_id)
 
     resp1 = client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": target1_id, "domain": "tech"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_id}",
@@ -425,7 +425,7 @@ def test_get_votes_by_voter_with_domain_filter():
     assert resp1.status_code == 201
 
     resp2 = client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": target2_id, "domain": "design"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_id}",
@@ -435,7 +435,7 @@ def test_get_votes_by_voter_with_domain_filter():
     _validate_for_users([voter_id, target1_id, target2_id])
 
     response_get = client.get(
-        "/votes/by-voter/me?domain=tech",
+        "/api/votes/by-voter/me?domain=tech",
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_id}",
     )
@@ -470,19 +470,19 @@ def test_received_votes_chain_abc_d():
     _cleanup_neo4j_for_users(voter_c, user_d)
 
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": voter_c, "domain": domain},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_a}",
     )
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": voter_c, "domain": domain},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_b}",
     )
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": user_d, "domain": domain},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_c}",
@@ -491,7 +491,7 @@ def test_received_votes_chain_abc_d():
     _validate_for_users([voter_a, voter_b, voter_c, user_d])
 
     response_get = client.get(
-        f"/votes/for-user/{user_d}",
+        f"/api/votes/for-user/{user_d}",
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {user_d}",
     )
@@ -531,21 +531,21 @@ def test_received_votes_chain_cross_domain():
     _cleanup_neo4j_for_users(voter_c, user_d)
 
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": voter_c, "domain": domain_tech},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_a}",
     )
 
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": voter_c, "domain": domain_finance},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_b}",
     )
 
     client.post(
-        "/votes",
+        "/api/votes",
         {"targetUserId": user_d, "domain": domain_tech},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {voter_c}",
@@ -554,7 +554,7 @@ def test_received_votes_chain_cross_domain():
     _validate_for_users([voter_a, voter_b, voter_c, user_d])
 
     response_get = client.get(
-        f"/votes/for-user/{user_d}",
+        f"/api/votes/for-user/{user_d}",
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {user_d}",
     )

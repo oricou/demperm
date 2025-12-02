@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { View, FlatList } from "react-native";
+import { View, FlatList, TouchableOpacity, Text } from "react-native";
 import Post from "@/types/post";
-import PostComponent from "../../components/PostComponent";
+import PostComponent from "@/components/PostComponent";
 
 
 type Props = {
@@ -11,24 +11,31 @@ type Props = {
 
 const PostPage: React.FC<Props> = ({ posts }) => {
 
-  // etat pour la recherche
-  const [search, setSearch] = useState("");
+  const [selectedPost, setselectedPost] = useState<Post | null>(null);
+  const data = posts ?? [];
 
-  // fonction simple de filtre — si pas de posts fournis, on affiche rien
-  const filteredPosts = (posts ?? []).filter(
-    (post) =>
-      post.title.toLowerCase().includes(search.toLowerCase()) ||
-      post.content.toLowerCase().includes(search.toLowerCase()) ||
-      post.alias.toLowerCase().includes(search.toLowerCase())
-  );
+  if (selectedPost) {
+    return (
+      <View style={{ flex: 1 }}>
+        <PostComponent post={selectedPost} />
+      </View>
+    );
+  }
+
 
   return (
     <View style={{ flex: 1 }}>
 
       <FlatList
-        data={filteredPosts}
-        keyExtractor={(item) => item.uuid}
-        renderItem={({ item }) => <PostComponent post={item} />}
+        data={data}
+        keyExtractor={(item) => item.post_id}
+        renderItem={({ item }) => (
+           <TouchableOpacity onPress={() => setselectedPost(item)}>
+          <PostComponent post={item}/>
+          </TouchableOpacity>
+        )}
+        showsVerticalScrollIndicator={false}
+
       />
     </View>
   );

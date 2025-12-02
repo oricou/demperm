@@ -1,10 +1,11 @@
-import Post from './post';
 // Definition of the Theme interface
 interface Theme{
-    uuid: string;
+    forum_id: string;
     name: string;
-    likes: number;
     description: string;
-    posts: Post[]
+    creator_id: string;
+    member_count: number;
+    post_count: number;
+    created_at: string;
 }
 export default Theme;

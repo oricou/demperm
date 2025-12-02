@@ -73,3 +73,16 @@ class UserBulkSerializer(serializers.Serializer):
         max_length=100
     )
 
+
+class CreateUserSerializer(serializers.Serializer):
+    """Serializer for creating a user from Firebase authentication.
+    
+    Firebase JWT provides: firebase_uid, email
+    Frontend provides: username, profile_picture (blob), bio, location, privacy (boolean)
+    """
+    username = serializers.CharField(max_length=30, required=True)
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
+    bio = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
+    location = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    privacy = serializers.BooleanField(required=False, default=True)  # True = public, False = private
+

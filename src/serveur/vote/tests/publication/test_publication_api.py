@@ -19,19 +19,18 @@ def _cleanup_neo4j_user(user_id: str):
 
 def test_get_publication_setting_unauthorized():
     """
-    Test que GET /publication/{userId} retourne 403 sans authentification.
+    Test que GET /api/publication retourne 401 sans authentification.
     """
     client = APIClient()
-    user_id = "test-user-get-unauth"
 
-    response = client.get(f"/publication/{user_id}")
+    response = client.get(f"/api/publication")
 
     assert response.status_code == 403
 
 
 def test_get_publication_setting_default_value():
     """
-    Test que GET /publication/{userId} retourne publishVotes=True par défaut
+    Test que GET /api/publication retourne publishVotes=True et threshold=-1 par défaut
     pour un nouvel utilisateur.
     """
     client = APIClient()
@@ -42,58 +41,33 @@ def test_get_publication_setting_default_value():
 
     auth_header = f"Bearer {user_id}"
     response = client.get(
-        f"/publication/{user_id}",
+        f"/api/publication",
         HTTP_AUTHORIZATION=auth_header,
     )
 
     assert response.status_code == 200
     data = response.json()
     
-    assert "userId" in data
     assert "publishVotes" in data
-    assert data["userId"] == user_id
+    assert "threshold" in data
     assert data["publishVotes"] is True  # Valeur par défaut
+    assert data["threshold"] == -1  # Valeur par défaut
 
 
 def test_put_publication_setting_unauthorized():
     """
-    Test que PUT /publication/{userId} retourne 403 sans authentification.
+    Test que PUT /api/publication retourne 401 sans authentification.
     """
     client = APIClient()
-    user_id = "test-user-put-unauth"
 
-    payload = {"publishVotes": False}
-    response = client.put(f"/publication/{user_id}", payload, format="json")
-
-    assert response.status_code == 403
-
-
-def test_put_publication_setting_forbidden_other_user():
-    """
-    Test qu'un utilisateur ne peut pas modifier les paramètres d'un autre utilisateur.
-    """
-    client = APIClient()
-    user_id = "test-user-put-other"
-    other_user_id = "test-user-put-other-target"
-
-    # L'utilisateur user_id tente de modifier les paramètres de other_user_id
-    auth_header = f"Bearer {user_id}"
-    payload = {"publishVotes": False}
-    
-    response = client.put(
-        f"/publication/{other_user_id}",
-        payload,
-        format="json",
-        HTTP_AUTHORIZATION=auth_header,
-    )
+    payload = {"publishVotes": False, "threshold": 10}
+    response = client.put(f"/api/publication", payload, format="json")
 
     assert response.status_code == 403
-    assert "Forbidden" in response.json()["error"]
-
 
 def test_put_publication_setting_invalid_data():
     """
-    Test que PUT /publication/{userId} retourne 400 si les données sont invalides.
+    Test que PUT /api/publication retourne 400 si les données sont invalides.
     """
     client = APIClient()
     user_id = "test-user-put-invalid"
@@ -103,7 +77,7 @@ def test_put_publication_setting_invalid_data():
     # Payload invalide (publishVotes manquant)
     payload = {}
     response = client.put(
-        f"/publication/{user_id}",
+        f"/api/publication",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -114,7 +88,7 @@ def test_put_publication_setting_invalid_data():
 
 def test_put_publication_setting_success_and_persisted():
     """
-    Test que PUT /publication/{userId} met à jour correctement le paramètre
+    Test que PUT /api/publication met à jour correctement le paramètre
     et le persiste dans Neo4j.
     """
     client = APIClient()
@@ -125,10 +99,10 @@ def test_put_publication_setting_success_and_persisted():
 
     auth_header = f"Bearer {user_id}"
 
-    # 1. Mise à jour à False
-    payload = {"publishVotes": False}
+    # 1. Mise à jour à False et 10
+    payload = {"publishVotes": False, "threshold": 10}
     response = client.put(
-        f"/publication/{user_id}",
+        f"/api/publication",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -136,8 +110,8 @@ def test_put_publication_setting_success_and_persisted():
 
     assert response.status_code == 200
     data = response.json()
-    assert data["userId"] == user_id
     assert data["publishVotes"] is False
+    assert data["threshold"] == 10
 
     # 2. Vérification dans Neo4j
     driver = get_driver()
@@ -145,18 +119,19 @@ def test_put_publication_setting_success_and_persisted():
         record = session.run(
             """
             MATCH (u:User {id: $userId})
-            RETURN u.publishVotes AS publishVotes
+            RETURN u.publishVotes AS publishVotes, u.threshold AS threshold
             """,
             userId=user_id,
         ).single()
 
         assert record is not None
         assert record["publishVotes"] is False
+        assert record["threshold"] == 10
 
-    # 3. Mise à jour à True
-    payload = {"publishVotes": True}
+    # 3. Mise à jour à True et 100
+    payload = {"publishVotes": True, "threshold": 100}
     response = client.put(
-        f"/publication/{user_id}",
+        f"/api/publication",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -165,19 +140,21 @@ def test_put_publication_setting_success_and_persisted():
     assert response.status_code == 200
     data = response.json()
     assert data["publishVotes"] is True
+    assert data["threshold"] == 100
 
     # 4. Vérification dans Neo4j
     with driver.session() as session:
         record = session.run(
             """
             MATCH (u:User {id: $userId})
-            RETURN u.publishVotes AS publishVotes
+            RETURN u.publishVotes AS publishVotes, u.threshold AS threshold
             """,
             userId=user_id,
         ).single()
 
         assert record is not None
         assert record["publishVotes"] is True
+        assert record["threshold"] == 100
 
 
 def test_get_publication_setting_after_update():
@@ -192,10 +169,10 @@ def test_get_publication_setting_after_update():
 
     auth_header = f"Bearer {user_id}"
 
-    # 1. Mise à jour à False
-    payload = {"publishVotes": False}
+    # 1. Mise à jour à False et 10
+    payload = {"publishVotes": False, "threshold": 10}
     put_response = client.put(
-        f"/publication/{user_id}",
+        f"/api/publication",
         payload,
         format="json",
         HTTP_AUTHORIZATION=auth_header,
@@ -204,11 +181,11 @@ def test_get_publication_setting_after_update():
 
     # 2. Récupération via GET
     get_response = client.get(
-        f"/publication/{user_id}",
+        f"/api/publication",
         HTTP_AUTHORIZATION=auth_header,
     )
     assert get_response.status_code == 200
     
     data = get_response.json()
-    assert data["userId"] == user_id
     assert data["publishVotes"] is False
+    assert data["threshold"] == 10

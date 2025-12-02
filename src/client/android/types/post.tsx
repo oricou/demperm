@@ -1,17 +1,17 @@
-import Comments from "./comments";
-
 // Definition of the Post interface
 interface Post{
     uuid: string;
+    post_id: string;
+    author_id: string;
+    author_username: string;
+    subforum_id: string;
     title: string;
     content: string;
-    picture: string | null;
-    timestamp: Date;
-    ownerId: number;
-    alias: string;
-    theme: string;
-    likes: number;
-    comments: Comments[];
+    content_signature: string;
+    like_count: number;
+    comment_count: number;
+    created_at: string;
+    updated_at: string;
 }
 
 export default Post;

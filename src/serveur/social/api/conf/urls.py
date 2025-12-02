@@ -84,7 +84,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API v1
-    path('api/v1/auth/', include('apps.custom_auth.urls')),
     path('api/v1/users/', include('apps.users.urls')),
     path('api/v1/domains/', include('apps.domains.urls')),
     path('api/v1/forums/', include('apps.forums.urls')),

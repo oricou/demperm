@@ -1,3 +1,11 @@
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiResponse,
+    OpenApiParameter,
+    OpenApiExample,
+    OpenApiTypes,
+)
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,19 +17,42 @@ from core.services.result_service import ResultService
 
 class ResultView(APIView):
     """
-    GET /results
-    Récupère les résultats des votes avec classement.
-    
-    Query params:
-    - domain (optionnel): Filtrer par domaine
-    - top (optionnel, défaut 100): Nombre de résultats à retourner
-    - since (optionnel): Date au format YYYY-MM-DD pour filtrer les votes depuis cette date
-    
-    Réponse 200: Liste de VoteResult
-    Réponse 400: Paramètres invalides
-    Réponse 401: Non autorisé
+    GET /api/results
     """
 
+    @extend_schema(
+        tags=["Results"],
+        parameters=[
+            OpenApiParameter(
+                name="domain",
+                description="Filtrer par domaine (optionnel)",
+                required=False,
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="top",
+                description="Nombre de top résultats à retourner (défaut 100)",
+                required=False,
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="since",
+                description="Retourner résultats depuis cette date (YYYY-MM-DD)",
+                required=False,
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: VoteResultSerializer(many=True),
+            400: OpenApiResponse(description="Paramètres invalides"),
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+        description="Récupère les résultats agrégés des votes avec classement. "
+                    "Paramètres: domain, top, since (YYYY-MM-DD).",
+    )
     def get(self, request):
         """
         Récupère les résultats agrégés des votes.

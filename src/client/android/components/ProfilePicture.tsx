@@ -5,6 +5,7 @@ import { FontAwesome } from '@expo/vector-icons';
 
 type Props = {
   size?: number;
+  imageUrl: string | undefined;
 };
 
 const ProfileAvatar: React.FC<Props> = ({size = 80 }) => {
