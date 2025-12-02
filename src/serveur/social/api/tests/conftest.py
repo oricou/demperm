@@ -18,7 +18,7 @@ def api_client():
 def test_user(db):
     """Create a test user."""
     user = User.objects.create(
-        google_id='test-google-id',
+        firebase_uid='test-firebase-uid',
         email='test@example.com',
         username='testuser'
     )
@@ -31,7 +31,7 @@ def test_user(db):
 def admin_user(db):
     """Create an admin user."""
     user = User.objects.create(
-        google_id='admin-google-id',
+        firebase_uid='admin-firebase-uid',
         email='admin@example.com',
         username='adminuser',
         is_admin=True
@@ -70,4 +70,3 @@ def domains(db):
 def enable_db_access_for_all_tests(db):
     """Enable database access for all tests."""
     pass
-

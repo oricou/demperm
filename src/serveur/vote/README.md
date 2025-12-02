@@ -165,3 +165,53 @@ Cette architecture met en avant :
 - 🔹 Une **modélisation naturelle** des relations grâce à Neo4J
 - 🔹 Une **intégration continue fiable** avec GitHub Actions
 ---
+
+# Démarrer et Tester
+
+## Lancer le projet
+
+Depuis `demperm/server/vote` :
+```bash
+docker compose up -d
+```
+Services disponibles :
+
+| Service             | URL                                                                  |
+| ------------------- | -------------------------------------------------------------------- |
+| Backend             | [http://localhost:8000](http://localhost:8000)                       |
+| Neo4j Browser       | [http://localhost:7474](http://localhost:7474)                       |
+| Swagger (si activé) | [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)     |
+
+Identifiants Neo4j :
+
+```yaml
+username : neo4j
+password : password
+```
+
+## Tester Neo4j
+
+Dans Neo4j Browser :
+
+Vérifier la connexion
+```cypher
+RETURN 1;
+```
+
+Voir tous les users
+```cypher
+MATCH (u:User) RETURN u LIMIT 100;
+```
+
+Voir les votes
+```cypher
+MATCH (v:User)-[r:VOTED]->(t:User)
+RETURN v, r, t LIMIT 50;
+```
+
+## Exemple de test
+
+Depuis `demperm/server/vote` :
+```bash
+./test_chain_votes.sh
+```

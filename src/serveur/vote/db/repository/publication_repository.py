@@ -23,7 +23,7 @@ class PublicationRepository:
             
         Returns:
             dict avec userId et publishVotes
-            Si l'utilisateur n'existe pas, retourne publishVotes=True par défaut
+            Si l'utilisateur n'existe pas, retourne publishVotes=True et threshold=-1 par défaut
         """
         driver = get_driver()
         with driver.session() as session:
@@ -42,7 +42,8 @@ class PublicationRepository:
             """
             MATCH (u:User {id: $userId})
             RETURN u.id AS userId, 
-                   COALESCE(u.publishVotes, true) AS publishVotes
+                   COALESCE(u.publishVotes, true) AS publishVotes,
+                   COALESCE(u.threshold, -1) AS threshold
             """,
             userId=user_id
         )
@@ -50,54 +51,58 @@ class PublicationRepository:
         
         if record:
             return {
-                "userId": record["userId"],
-                "publishVotes": record["publishVotes"]
+                "publishVotes": record["publishVotes"],
+                "threshold": record["threshold"]
             }
         
         # Si l'utilisateur n'existe pas encore, retourner la valeur par défaut
         return {
-            "userId": user_id,
-            "publishVotes": True
+            "publishVotes": True,
+            "threshold": -1
         }
 
     @staticmethod
-    def update_publication_setting(user_id: str, publish_votes: bool) -> dict:
+    def update_publication_setting(user_id: str, publish_votes: bool, threshold: int) -> dict:
         """
         Met à jour le paramètre de publication d'un utilisateur.
         
         Args:
             user_id: ID de l'utilisateur
             publish_votes: Nouvelle valeur du paramètre
+            threshold: Nouvelle valeur du paramètre
             
         Returns:
-            dict avec userId et publishVotes mis à jour
+            dict avec publishVotes et threshold mis à jour
         """
         driver = get_driver()
         with driver.session() as session:
             result = session.execute_write(
                 PublicationRepository._update_publication_setting_tx,
                 user_id,
-                publish_votes
+                publish_votes,
+                threshold
             )
             return result
 
     @staticmethod
-    def _update_publication_setting_tx(tx, user_id: str, publish_votes: bool) -> dict:
+    def _update_publication_setting_tx(tx, user_id: str, publish_votes: bool, threshold: int) -> dict:
         """
         Transaction d'écriture pour mettre à jour publishVotes.
         """
         result = tx.run(
             """
             MERGE (u:User {id: $userId})
-            SET u.publishVotes = $publishVotes
-            RETURN u.id AS userId, u.publishVotes AS publishVotes
+            SET u.publishVotes = $publishVotes,
+                u.threshold = $threshold
+            RETURN u.publishVotes AS publishVotes, u.threshold AS threshold
             """,
             userId=user_id,
-            publishVotes=publish_votes
+            publishVotes=publish_votes,
+            threshold=threshold
         )
         record = result.single()
         
         return {
-            "userId": record["userId"],
-            "publishVotes": record["publishVotes"]
+            "publishVotes": record["publishVotes"],
+            "threshold": record["threshold"]
         }

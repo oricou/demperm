@@ -1,3 +1,9 @@
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiResponse,
+    OpenApiParameter,
+)
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,19 +11,24 @@ from rest_framework import status
 from core.dto.vote_request_dto import VoteRequestSerializer
 from core.dto.vote_response_dto import VoteSerializer, ReceivedVotesSerializer
 from core.services.vote_service import VoteService
+from core.services.vote_validation_service import VoteValidationService
 
 
 class VoteView(APIView):
     """
-    POST /votes
-    Body: VoteRequest
-    Réponse 201: Vote
-
-    DELETE /votes/{domain}
-    Réponse 204: OK
-    Réponse 404: Vote introuvable
+    POST /api/votes
     """
 
+    @extend_schema(
+        tags=["Votes"],
+        request=VoteRequestSerializer,
+        responses={
+            201: VoteSerializer,
+            400: OpenApiResponse(description="Invalid payload"),
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+        description="Crée un vote pour un domaine donné."
+    )
     def post(self, request):
         serializer = VoteRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -44,11 +55,29 @@ class VoteView(APIView):
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
+class VoteDeleteView(APIView):
+    """
+    DELETE /api/votes/{domain}
+    """
+
+    @extend_schema(
+        tags=["Votes"],
+        parameters=[
+            OpenApiParameter(
+                name="domain",
+                type=str,
+                location=OpenApiParameter.PATH,
+                description="Domaine du vote à supprimer",
+            )
+        ],
+        responses={
+            204: OpenApiResponse(description="Vote supprimé"),
+            404: OpenApiResponse(description="Vote introuvable"),
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+        description="Supprime le vote de l'utilisateur authentifié pour un domaine."
+    )
     def delete(self, request, domain: str):
-        """
-        DELETE /votes/{domain}
-        Supprime le vote de l'utilisateur authentifié pour un domaine donné.
-        """
         user = getattr(request, "user", None)
         voter_id = getattr(user, "id", None)
 
@@ -74,10 +103,29 @@ class VoteView(APIView):
 
 class VotesByVoterView(APIView):
     """
-    GET /votes/by-voter/{voterId}?domain=xxx
-    Retourne la liste des votes effectués par un utilisateur donné.
+    GET /api/votes/by-user/{userId}
     """
 
+    @extend_schema(
+        tags=["Votes"],
+        parameters=[
+            OpenApiParameter(
+                name="voterId",
+                type=str,
+                location=OpenApiParameter.PATH,
+                description="ID de l'utilisateur dont on veut les votes",
+            ),
+            OpenApiParameter(
+                name="domain",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtrer par domaine",
+            )
+        ],
+        responses={200: VoteSerializer(many=True)},
+        description="Retourne la liste des votes effectués par un utilisateur donné."
+    )
     def get(self, request, voterId: str):
         user = getattr(request, "user", None)
         if getattr(user, "id", None) is None:
@@ -99,10 +147,23 @@ class VotesByVoterView(APIView):
 
 class VotesByVoterMeView(APIView):
     """
-    GET /votes/by-voter/me?domain=xxx
-    Retourne la liste des votes effectués par l'utilisateur authentifié.
+    GET /api/votes/by-voter/me
     """
-
+    
+    @extend_schema(
+        tags=["Votes"],
+        parameters=[
+            OpenApiParameter(
+                name="domain",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtrer par domaine",
+            )
+        ],
+        responses={200: VoteSerializer(many=True)},
+        description="Retourne la liste des votes effectués par l'utilisateur authentifié."
+    )
     def get(self, request):
         user = getattr(request, "user", None)
         voter_id = getattr(user, "id", None)
@@ -126,10 +187,29 @@ class VotesByVoterMeView(APIView):
 
 class VotesForUserView(APIView):
     """
-    GET /votes/for-user/{userId}?domain=xxx
-    Retourne les votes reçus par un utilisateur (total + par domaine + électeurs).
+    GET /api/votes/for-user/{userId}
     """
 
+    @extend_schema(
+        tags=["Votes"],
+        parameters=[
+            OpenApiParameter(
+                name="userId",
+                type=str,
+                location=OpenApiParameter.PATH,
+                description="Utilisateur dont on veut les votes reçus"
+            ),
+            OpenApiParameter(
+                name="domain",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtrer par domaine"
+            )
+        ],
+        responses={200: ReceivedVotesSerializer},
+        description="Retourne les votes reçus par un utilisateur."
+    )
     def get(self, request, userId: str):
         user = getattr(request, "user", None)
         if getattr(user, "id", None) is None:
@@ -151,10 +231,23 @@ class VotesForUserView(APIView):
 
 class VotesForUserMeView(APIView):
     """
-    GET /votes/for-user/me?domain=xxx
-    Retourne les votes reçus par l'utilisateur authentifié.
+    GET /api/votes/for-user/me
     """
-
+    
+    @extend_schema(
+        tags=["Votes"],
+        parameters=[
+            OpenApiParameter(
+                name="domain",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Filtrer par domaine"
+            )
+        ],
+        responses={200: ReceivedVotesSerializer},
+        description="Retourne les votes reçus par l'utilisateur authentifié."
+    )
     def get(self, request):
         user = getattr(request, "user", None)
         user_id = getattr(user, "id", None)
@@ -174,3 +267,17 @@ class VotesForUserMeView(APIView):
 
         serializer = ReceivedVotesSerializer(received_votes)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class VoteValidationView(APIView):
+    """
+    GET /api/votes/validate/force
+    """
+    
+    @extend_schema(
+        tags=["Votes"],
+        responses={200: OpenApiResponse(description="Validation exécutée")},
+        description="Force l'exécution de la tâche quotidienne de validation des votes."
+    )
+    def get(self):
+        VoteValidationService.process_daily_votes()
+        return Response(status=status.HTTP_200_OK)

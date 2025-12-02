@@ -18,10 +18,10 @@ class UserRepository:
             return None
     
     @staticmethod
-    def get_by_google_id(google_id: str) -> Optional[User]:
-        """Get user by Google ID."""
+    def get_by_firebase_uid(firebase_uid: str) -> Optional[User]:
+        """Get user by Firebase UID."""
         try:
-            return User.objects.select_related('profile', 'settings').get(google_id=google_id)
+            return User.objects.select_related('profile', 'settings').get(firebase_uid=firebase_uid)
         except User.DoesNotExist:
             return None
     
@@ -42,10 +42,10 @@ class UserRepository:
             return None
     
     @staticmethod
-    def create(google_id: str, email: str, username: str) -> User:
+    def create(firebase_uid: str, email: str, username: str) -> User:
         """Create a new user with profile and settings."""
         user = User.objects.create(
-            google_id=google_id,
+            firebase_uid=firebase_uid,
             email=email,
             username=username
         )
@@ -62,12 +62,13 @@ class UserRepository:
         return user
     
     @staticmethod
-    def search_by_username(query: str, limit: int = 20) -> List[User]:
+    def search_by_username(query: str, page: int = 1, page_size: int = 20) -> List[User]:
         """Search users by username (case-insensitive)."""
+        offset = (page - 1) * page_size
         return User.objects.filter(
             username__icontains=query,
             is_banned=False
-        ).select_related('profile')[:limit]
+        ).select_related('profile')[offset:offset + page_size]
     
     @staticmethod
     def get_bulk(user_ids: List[str]) -> List[User]:

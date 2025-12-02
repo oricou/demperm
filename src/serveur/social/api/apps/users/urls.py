@@ -3,7 +3,7 @@ URL configuration for users app.
 """
 from django.urls import path
 from .views import (
-    CurrentUserView, UpdateCurrentUserView, UpdateCurrentUserSettingsView,
+    CurrentUserView, CreateUserView, UpdateCurrentUserView, UpdateCurrentUserSettingsView,
     UserDetailView, BlockUserView, UnblockUserView, BlockedUsersView,
     UserSearchView, UserBulkView
 )
@@ -16,6 +16,9 @@ urlpatterns = [
     path('me/update/', UpdateCurrentUserView.as_view(), name='update-profile'),
     path('me/settings/', UpdateCurrentUserSettingsView.as_view(), name='update-settings'),
     path('me/blocked/', BlockedUsersView.as_view(), name='blocked-users'),
+    
+    # User creation
+    path('', CreateUserView.as_view(), name='create-user'),
     
     # User operations
     path('search/', UserSearchView.as_view(), name='search-users'),

@@ -7,3 +7,4 @@ class PublicationUpdateRequestSerializer(serializers.Serializer):
     Correspond au body du PUT /publication/{userId}
     """
     publishVotes = serializers.BooleanField()
+    threshold = serializers.IntegerField(min_value=-1)
