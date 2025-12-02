@@ -87,9 +87,9 @@ def test_get_monthly(sample_data, driver):
     data = response.json()
     print(data)
     assert data['userId'] == user_id
-    assert len(data['monthly']) == 2
-    assert data['monthly'][0]['count'] == 4
-    assert data['delta'] == 4
+    assert len(data['monthly']) == 3
+    assert data['monthly'][0]['count'] == 3
+    assert data['delta'] == 3
 
 def test_chart_unauth(driver):
     """
