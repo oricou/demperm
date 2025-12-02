@@ -137,8 +137,8 @@ class MessageService:
         # Get conversation
         messages = MessageRepository.get_conversation(user_id, other_user_id, page, page_size)
         
-        # Mark messages as read
-        MessageRepository.mark_as_read(user_id, other_user_id)
+        # Mark messages as read (messages sent by other_user TO user_id)
+        MessageRepository.mark_as_read(other_user_id, user_id)
         
         return messages
     
@@ -166,10 +166,28 @@ class MessageService:
     ) -> None:
         """
         Delete a conversation (soft delete - only for current user).
+        Messages are marked as deleted for the user but preserved for the other user.
         
-        Note: This is a placeholder. In production, implement soft delete
-        by adding a 'deleted_by' field to Message model.
+        Args:
+            user_id: Current user ID
+            other_user_id: Other user ID
+            ip_address: Client IP address for audit
         """
-        # For now, this is not implemented as it requires schema changes
-        raise NotImplementedError("Conversation deletion not yet implemented")
+        # Check if other user exists
+        other_user = UserRepository.get_by_id(other_user_id)
+        if not other_user:
+            raise NotFoundError(f"User {other_user_id} not found")
+        
+        # Mark all messages as deleted for current user
+        MessageRepository.mark_conversation_as_deleted(user_id, other_user_id)
+        
+        # Audit log
+        AuditLogRepository.create(
+            user_id=user_id,
+            action_type='conversation_deleted',
+            resource_type='message',
+            resource_id=None,
+            details={'other_user_id': other_user_id},
+            ip_address=ip_address
+        )
 

@@ -11,3 +11,15 @@ gunicorn>=21.2,<22.0
 drf-yasg>=1.21,<2.0
 firebase-admin>=6.5,<7.0
 Pillow>=10.0,<11.0
+
+# Development & testing extras (from pyproject.toml optional-dependencies.dev)
+pytest>=7.4,<8.0
+pytest-django>=4.7,<5.0
+pytest-cov>=4.1,<5.0
+pytest-asyncio>=0.21,<1.0
+black>=23.12,<24.0
+flake8>=6.1,<7.0
+mypy>=1.7,<2.0
+django-stubs>=4.2,<5.0
+types-requests>=2.31,<3.0
+ipython>=8.18,<9.0

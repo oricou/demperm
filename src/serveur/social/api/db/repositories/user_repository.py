@@ -62,12 +62,13 @@ class UserRepository:
         return user
     
     @staticmethod
-    def search_by_username(query: str, limit: int = 20) -> List[User]:
+    def search_by_username(query: str, page: int = 1, page_size: int = 20) -> List[User]:
         """Search users by username (case-insensitive)."""
+        offset = (page - 1) * page_size
         return User.objects.filter(
             username__icontains=query,
             is_banned=False
-        ).select_related('profile')[:limit]
+        ).select_related('profile')[offset:offset + page_size]
     
     @staticmethod
     def get_bulk(user_ids: List[str]) -> List[User]:

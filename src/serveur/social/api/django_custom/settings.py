@@ -168,11 +168,7 @@ REST_FRAMEWORK = {
     'MAX_PAGE_SIZE': 100,
     # Use the custom exception handler in production, but when DEBUG is
     # enabled prefer DRF's default handler so we get useful debug output
-    # while developing/debugging.
-    'EXCEPTION_HANDLER': (
-        'rest_framework.views.exception_handler' if DEBUG
-        else 'common.exceptions.custom_exception_handler'
-    ),
+    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
@@ -184,19 +180,23 @@ REST_FRAMEWORK = {
 }
 
 # drf-yasg / Swagger UI configuration
-# Force Swagger to present a Bearer (JWT) auth input instead of default Basic/Session
+# Force Swagger to present a Bearer (Firebase) auth input instead of default Basic/Session
 SWAGGER_SETTINGS = {
     # Do not include Django session authentication (login button) in the docs UI
     'USE_SESSION_AUTH': False,
-    # Define a Bearer (JWT) scheme in Swagger 2.0 (represented as apiKey in header)
+    # Define a Bearer (Firebase ID Token) scheme in Swagger 2.0 (represented as apiKey in header)
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
-            'description': 'JWT Authorization header using the Bearer scheme. Example: "Bearer <your_token>"',
+            'description': 'Firebase ID Token Authorization header using the Bearer scheme. '
+                         'Example: "Bearer <your_firebase_id_token>". '
+                         'Get your Firebase ID token from Firebase Authentication SDK after login.',
         }
     },
+    # Force all endpoints to require authentication by default
+    'SECURITY': [{'Bearer': []}],
 }
 
 # CORS Configuration
@@ -292,4 +292,3 @@ MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minioadmin')
 MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'social-media')
 MINIO_USE_SSL = os.getenv('MINIO_USE_SSL', 'False') == 'True'
-

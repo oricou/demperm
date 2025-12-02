@@ -1,17 +1,51 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getMailbox } from '../../../domains/social/api'
 import { SidebarList } from '../../../components/composite/SidebarList'
 import { MessageBubble } from '../../../components/composite/MessageBubble'
 import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
 
-type Thread = { id: string; title: string }
+type ThreadItem = { id: string; title: string; subtitle?: string; meta?: string }
 type Message = { id: string; content: string; mine?: boolean; timestamp: string }
 
+/**
+ * Page messagerie mockée : affiche threads et messages depuis le mock mailbox.
+ */
 export default function MessagesPage() {
-  const [threads] = useState<Thread[]>([])
-  const [messagesByThread] = useState<Record<string, Message[]>>({})
-  const [activeConversation, setActiveConversation] = useState<string | null>(threads[0]?.id ?? null)
+  const [threads, setThreads] = useState<ThreadItem[]>([])
+  const [messagesByThread, setMessagesByThread] = useState<Record<string, Message[]>>({})
+  const [activeConversation, setActiveConversation] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadMailbox() {
+      const data = await getMailbox('user-main')
+      setThreads(
+        data.threads.map((thread) => ({
+          id: thread.id,
+          title: thread.title,
+          subtitle: `Dernier message: ${thread.last_message_at}`,
+          meta: thread.unread_count > 0 ? `${thread.unread_count} non lus` : undefined
+        }))
+      )
+      setMessagesByThread(
+        Object.fromEntries(
+          Object.entries(data.messages_by_thread).map(([threadId, messages]) => [
+            threadId,
+            messages.map((msg) => ({
+              id: msg.id,
+              content: msg.content,
+              mine: msg.mine,
+              timestamp: msg.timestamp
+            }))
+          ])
+        )
+      )
+      setActiveConversation((prev) => prev ?? data.threads[0]?.id ?? null)
+    }
+
+    loadMailbox()
+  }, [])
 
   const conversation = useMemo(() => {
     if (!activeConversation) return []
@@ -70,7 +104,8 @@ export default function MessagesPage() {
   )
 }
 
-function getConversationTitle(id: string | null, threads: Thread[]) {
+/** Retourne le titre d'un fil à partir de son id (ou fallback). */
+function getConversationTitle(id: string | null, threads: ThreadItem[]) {
   if (!id) return 'Aucune conversation active'
   return threads.find((item) => item.id === id)?.title ?? 'Conversation'
 }

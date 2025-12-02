@@ -16,6 +16,8 @@ class Message(models.Model):
     encryption_key_sender = models.CharField(max_length=512)
     encryption_key_receiver = models.CharField(max_length=512)
     is_read = models.BooleanField(default=False)
+    deleted_by_sender = models.BooleanField(default=False)
+    deleted_by_receiver = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     
     class Meta:
