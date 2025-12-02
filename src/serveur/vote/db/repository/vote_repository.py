@@ -1,5 +1,7 @@
 import datetime
 from app.neo4j_config import get_driver
+from uuid import *
+from typing import List
 
 class VoteRepository:
     """
@@ -764,3 +766,88 @@ class VoteRepository:
                 relIds=rel_ids,
                 count=count
             )
+
+    def get_daily_votes_to_user(user_id: uuid4) -> List:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_daily_votes_to_user_tx, user_id)
+
+    @staticmethod
+    def _get_daily_votes_to_user_tx(tx, user_id: str) -> List:
+        res = tx.run(
+            """
+            MATCH (:User)-[vote:VOTED]->(dst:User {id: $dst_id})
+            RETURN date(vote.created_at) AS date, sum(vote.count) AS count
+            ORDER BY date DESC
+            """,
+            dst_id=user_id
+        )
+        return list(res)
+
+    @staticmethod
+    def get_monthly_votes_to_user(user_id: uuid4) -> List:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_monthly_votes_to_user_tx, user_id)
+
+    def _get_monthly_votes_to_user_tx(tx, user_id: str) -> List:
+        res = tx.run(
+            """
+            MATCH (:User)-[vote:VOTED]->(dst:User {id: '4'})
+            RETURN date(vote.created_at).year as year, date(vote.created_at).month AS month, sum(vote.count) AS count
+            ORDER BY year, month desc
+            """,
+            dst_id=user_id
+        )
+        return list(res)
+
+    @staticmethod
+    def get_chart_for_domain(domain: str) -> List:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_chart_for_domain_tx, domain)
+
+    def _get_chart_for_domain_tx(tx, domain: str) -> List:
+        res = tx.run(
+            """
+            MATCH (:User {domain: $domain})-[v:VOTED]->(u:User {domain: $domain})
+            WHERE NOT EXISTS ((u)-[:VOTED]->())
+            AND v.created_at >= datetime() - duration({days:30})
+            WITH u.id AS userId, date(v.created_at) AS day, sum(v.count) AS votes_per_day
+            ORDER BY day desc
+            WITH userId, collect({date: day, count: votes_per_day}) AS votes
+            RETURN userId, votes
+            """,
+            domain=domain
+        )
+
+        returned = []
+        for user_chart in res:
+            votes = []
+            for v in user_chart['votes']:
+                votes.append({
+                    'date': str(v['date']),
+                    'count': v['count']
+                })
+            returned.append({
+                'userId': user_chart['userId'],
+                'votes': votes
+            })
+        return returned
+
+    @staticmethod
+    def get_all_domains() -> List:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_all_domains_tx)
+
+    @staticmethod
+    def _get_all_domains_tx(tx) -> List:
+        res = tx.run(
+            """
+            MATCH (u:User)
+            WHERE u.domain IS NOT NULL
+            RETURN DISTINCT u.domain AS domain
+            """
+        )
+        return [rec['domain'] for rec in res]
