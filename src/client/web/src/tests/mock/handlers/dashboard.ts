@@ -4,8 +4,8 @@ import { mockConfig } from '../config'
 // Data files
 import receivedVotes from '../data/receivedVotes.json'
 import emittedVotes from '../data/emittedVotes.json'
-import dailyVotes from '../data/dailyVotes.json'
-import results from '../data/results.json'
+import dailyVotes from '../data/dailyVoteStats.json'
+import results from '../data/voteResults.json'
 import domains from '../data/domains.json'
 
 /**
@@ -13,7 +13,6 @@ import domains from '../data/domains.json'
  * Each endpoint includes its own authorization check
  * because MSW v2 does NOT support middleware like "next()".
  */
-
 export const dashboardHandlers = [
 
   // Votes received by the authenticated user

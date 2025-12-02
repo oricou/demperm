@@ -1,0 +1,168 @@
+{
+  "550e8400-e29b-41d4-a716-446655440001": {
+    "userId": "550e8400-e29b-41d4-a716-446655440001",
+    "acceptVotes": true,
+    "lastVotesByCategory": [
+      {
+        "domainId": 1,
+        "domainLabel": "Culture",
+        "domainCode": "culture",
+        "targetUserId": "550e8400-e29b-41d4-a716-446655440003",
+        "targetPseudo": "Sophie Théâtre"
+      },
+      {
+        "domainId": 2,
+        "domainLabel": "Transports",
+        "domainCode": "transport",
+        "targetUserId": "550e8400-e29b-41d4-a716-446655440007",
+        "targetPseudo": "Mme Delage"
+      },
+      {
+        "domainId": 3,
+        "domainLabel": "Éducation",
+        "domainCode": "education",
+        "targetUserId": "550e8400-e29b-41d4-a716-446655440010",
+        "targetPseudo": "Claire Éducation"
+      }
+    ],
+    "mesVoix": {
+      "totalVotesUser": 166,
+      "parDomaine": [
+        {
+          "domainId": 1,
+          "domainLabel": "Culture",
+          "domainCode": "culture",
+          "votesDansCeDomaine": 23,
+          "ratioSurTotal": 13.86
+        },
+        {
+          "domainId": 2,
+          "domainLabel": "Transports",
+          "domainCode": "transport",
+          "votesDansCeDomaine": 31,
+          "ratioSurTotal": 18.67
+        },
+        {
+          "domainId": 3,
+          "domainLabel": "Éducation",
+          "domainCode": "education",
+          "votesDansCeDomaine": 112,
+          "ratioSurTotal": 67.47
+        }
+      ]
+    },
+    "top5ParDomaine": {
+      "culture": [
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440004",
+          "pseudo": "M. Gentil",
+          "totalVotesDansCeDomaine": 156
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440005",
+          "pseudo": "Malia Jazz",
+          "totalVotesDansCeDomaine": 142
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440003",
+          "pseudo": "Sophie Théâtre",
+          "totalVotesDansCeDomaine": 98
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440009",
+          "pseudo": "Marc Culture",
+          "totalVotesDansCeDomaine": 45
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440001",
+          "pseudo": "Alice Wonder",
+          "totalVotesDansCeDomaine": 23
+        }
+      ],
+      "transport": [
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440007",
+          "pseudo": "Mme Delage",
+          "totalVotesDansCeDomaine": 203
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440006",
+          "pseudo": "Youssef Transit",
+          "totalVotesDansCeDomaine": 87
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440008",
+          "pseudo": "Choupinou",
+          "totalVotesDansCeDomaine": 62
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440001",
+          "pseudo": "Alice Wonder",
+          "totalVotesDansCeDomaine": 31
+        }
+      ],
+      "education": [
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440010",
+          "pseudo": "Claire Éducation",
+          "totalVotesDansCeDomaine": 178
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440001",
+          "pseudo": "Alice Wonder",
+          "totalVotesDansCeDomaine": 112
+        }
+      ],
+      "environnement": [
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440002",
+          "pseudo": "Bob Martin",
+          "totalVotesDansCeDomaine": 234
+        },
+        {
+          "userId": "550e8400-e29b-41d4-a716-446655440001",
+          "pseudo": "Alice Wonder",
+          "totalVotesDansCeDomaine": 45
+        }
+      ]
+    },
+    "voteTrendsByDomain": {
+      "culture": {
+        "domainLabel": "Culture",
+        "points": [
+          { "label": "J-6", "value": 18 },
+          { "label": "J-5", "value": 19 },
+          { "label": "J-4", "value": 20 },
+          { "label": "J-3", "value": 21 },
+          { "label": "J-2", "value": 22 },
+          { "label": "J-1", "value": 22 },
+          { "label": "Aujourd'hui", "value": 23 }
+        ]
+      },
+      "transport": {
+        "domainLabel": "Transports",
+        "points": [
+          { "label": "J-6", "value": 28 },
+          { "label": "J-5", "value": 29 },
+          { "label": "J-4", "value": 30 },
+          { "label": "J-3", "value": 30 },
+          { "label": "J-2", "value": 31 },
+          { "label": "J-1", "value": 31 },
+          { "label": "Aujourd'hui", "value": 31 }
+        ]
+      },
+      "education": {
+        "domainLabel": "Éducation",
+        "points": [
+          { "label": "J-6", "value": 105 },
+          { "label": "J-5", "value": 107 },
+          { "label": "J-4", "value": 109 },
+          { "label": "J-3", "value": 110 },
+          { "label": "J-2", "value": 111 },
+          { "label": "J-1", "value": 112 },
+          { "label": "Aujourd'hui", "value": 112 }
+        ]
+      }
+    }
+  }
+}
