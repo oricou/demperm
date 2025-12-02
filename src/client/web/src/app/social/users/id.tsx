@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getPublicProfile } from '../../../domains/social/api'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { InfoCard } from '../../../components/composite/InfoCard'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card'
+import { Button } from '../../../components/ui/Button'
+import { Select } from '../../../components/ui/Select'
 
 type InfoField = 'Prénom' | 'Nom' | 'Pseudo'
 type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
+type VoteCategory = { id: string; label: string }
 
 /**
  * Page profil public : lit l'identifiant cible via la query (?userId=) et affiche les données mockées.
@@ -27,10 +30,29 @@ export default function PublicProfilePage() {
   const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
   const [searchParams] = useSearchParams()
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const navigate = useNavigate()
+
+  const voteCategories: VoteCategory[] = useMemo(
+    () => [
+      { id: 'culture', label: 'Culture' },
+      { id: 'education', label: 'Éducation' },
+      { id: 'emploi', label: 'Emploi' },
+      { id: 'environnement', label: 'Environnement' },
+      { id: 'numerique', label: 'Numérique' },
+      { id: 'sante', label: 'Santé' },
+      { id: 'securite', label: 'Sécurité' },
+      { id: 'sport', label: 'Sport' },
+      { id: 'transports', label: 'Transports' }
+    ],
+    []
+  )
+
+  const targetUserId = useMemo(() => searchParams.get('userId') ?? 'user-main', [searchParams])
+  const isSelf = targetUserId === 'user-main'
 
   useEffect(() => {
     async function loadProfile() {
-      const targetUserId = searchParams.get('userId') ?? 'user-main'
       const data = await getPublicProfile(targetUserId)
       setProfile({
         fullName: `${data.user.first_name} ${data.user.last_name}`,
@@ -68,7 +90,24 @@ export default function PublicProfilePage() {
       )
     }
     loadProfile()
-  }, [searchParams])
+  }, [targetUserId])
+
+  useEffect(() => {
+    if (voteCategories.length > 0) {
+      setSelectedCategory((prev) => prev || voteCategories[0].id)
+    }
+  }, [voteCategories])
+
+  /** Action vote (mock) : pour l'instant simple placeholder sans backend. */
+  function handleVote() {
+    void selectedCategory
+    // Placeholder : à connecter au backend lorsqu'il sera prêt
+  }
+
+  /** Redirige vers la messagerie (ajout contact à brancher côté backend plus tard). */
+  function handleAddToMessaging() {
+    navigate('/messages')
+  }
 
   return (
     <div className="space-y-6">
@@ -139,7 +178,36 @@ export default function PublicProfilePage() {
 
         <div className="space-y-6 md:col-span-3">
           <InfoCard title="Infos publiques" items={infoItems} />
-        </div>
+          {!isSelf && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Voter</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+              <Select
+                label="Catégorie"
+                value={selectedCategory}
+                onChange={(event) => setSelectedCategory(event.target.value)}
+              >
+                  {voteCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
+                </Select>
+              <Button className="w-full" variant="primary" onClick={handleVote}>
+                Voter pour ce profil
+              </Button>
+              <Button className="w-full" variant="outline" onClick={handleAddToMessaging}>
+                Ajouter à la messagerie
+              </Button>
+              <p className="text-xs text-muted">
+                L'ajout au carnet de contacts sera branché quand le backend sera prêt.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
       </div>
     </div>
   )
