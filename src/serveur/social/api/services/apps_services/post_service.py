@@ -223,5 +223,5 @@ class PostService:
         - Ordered by popularity (likes + comments)
         - Excludes blocked users
         """
-        return PostRepository.get_discover(user_id, page, page_size)
+        return PostRepository.get_discover(page, page_size)
 
