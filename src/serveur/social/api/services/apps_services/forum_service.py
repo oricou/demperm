@@ -40,7 +40,7 @@ class ForumService:
         # Create forum
         forum = ForumRepository.create(
             creator_id=user_id,
-            name=name,
+            forum_name=name,
             description=description
         )
         
