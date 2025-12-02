@@ -41,8 +41,8 @@ class PostCommentsView(APIView):
         data = [{
             'comment_id': str(comment.comment_id),
             'post_id': str(comment.post_id),
-            'author_id': str(comment.author_id),
-            'author_username': comment.author.username,
+            'author_id': str(comment.user_id),
+            'author_username': comment.user.username,
             'parent_comment_id': str(comment.parent_comment_id) if comment.parent_comment_id else None,
             'content': comment.content,
             'created_at': comment.created_at,
@@ -81,7 +81,7 @@ class CreateCommentView(APIView):
             return Response({
                 'comment_id': str(comment.comment_id),
                 'post_id': str(comment.post_id),
-                'author_id': str(comment.author_id),
+                'author_id': str(comment.user_id),
                 'parent_comment_id': str(comment.parent_comment_id) if comment.parent_comment_id else None,
                 'content': comment.content,
                 'created_at': comment.created_at,
@@ -146,8 +146,8 @@ class CommentRepliesView(APIView):
         data = [{
             'comment_id': str(reply.comment_id),
             'post_id': str(reply.post_id),
-            'author_id': str(reply.author_id),
-            'author_username': reply.author.username,
+            'author_id': str(reply.user_id),
+            'author_username': reply.user.username,
             'parent_comment_id': str(reply.parent_comment_id),
             'content': reply.content,
             'created_at': reply.created_at,

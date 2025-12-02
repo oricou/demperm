@@ -154,6 +154,10 @@ class SubforumRepository:
         """Increment post count."""
         Subforum.objects.filter(subforum_id=subforum_id).update(post_count=F('post_count') + 1)
 
+    @staticmethod
+    def decrement_post_count(subforum_id: str) -> None:
+        Subforum.objects.filter(subforum_id=subforum_id).update(post_count=F('post_count') - 1)
+
 
 class MembershipRepository:
     """Repository for Membership entity operations."""
