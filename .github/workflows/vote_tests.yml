@@ -28,10 +28,11 @@ jobs:
           NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
           
         options: >-
-          --health-cmd="bash -lc 'cypher-shell -u neo4j -p password \"RETURN 1;\"'"
+          --health-cmd="cypher-shell -a bolt://localhost:7687 -u neo4j -p password 'RETURN 1;' || exit 1"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=20
+
 
     env:
       NEO4J_URI: bolt://localhost:7687
