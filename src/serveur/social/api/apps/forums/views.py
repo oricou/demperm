@@ -10,9 +10,15 @@ from drf_yasg import openapi
 from services.apps_services.forum_service import ForumService
 from common.permissions import IsAuthenticated, IsNotBanned
 from common.rate_limiters import rate_limit_general
-from common.exceptions import NotFoundError, ValidationError, ConflictError
+from common.exceptions import NotFoundError, ValidationError, ConflictError, PermissionDeniedError
 from common.utils import get_client_ip
 from .serializers import ForumSerializer, CreateForumSerializer
+from db.repositories.domain_repository import SubforumRepository
+from db.repositories.message_repository import AuditLogRepository
+from services.apps_services.domain_service import DomainService
+from common.validators import Validator
+from django.db import transaction
+from apps.domains.serializers import CreateSubforumSerializer, SubforumSerializer
 
 
 class ForumsListView(APIView):
@@ -205,4 +211,137 @@ class LeaveForumView(APIView):
                 {'error': {'code': 'NOT_FOUND', 'message': str(e)}},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except PermissionDeniedError as e:
+            return Response(
+                {'error': {'code': getattr(e, 'code', 'PERMISSION_DENIED'), 'message': str(getattr(e, 'message', e))}},
+                status=getattr(e, 'status_code', status.HTTP_403_FORBIDDEN)
+            )
+
+
+class UserForumsView(APIView):
+    """Get forums the authenticated user is a member of."""
+
+    permission_classes = [IsAuthenticated, IsNotBanned]
+
+    @swagger_auto_schema(
+        operation_description="Get forums for the authenticated user",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=1),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=20)
+        ],
+        responses={200: ForumSerializer(many=True)}
+    )
+    @rate_limit_general
+    def get(self, request):
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        memberships = ForumService.get_user_forums(str(request.user.user_id), page, page_size)
+
+        data = []
+        for m in memberships:
+            forum = m.forum
+            name = getattr(forum, 'name', None) or getattr(forum, 'forum_name', None)
+            data.append({
+                'forum_id': str(forum.forum_id),
+                'name': name,
+                'description': forum.description,
+                'creator_id': str(forum.creator_id) if getattr(forum, 'creator_id', None) else None,
+                'member_count': forum.member_count,
+                'post_count': forum.post_count,
+                'joined_at': m.joined_at
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ForumSubforumsView(APIView):
+    """List subforums under a forum."""
+
+    permission_classes = [IsAuthenticated, IsNotBanned]
+
+    @swagger_auto_schema(
+        operation_description="Get subforums for a forum",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=1),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=20)
+        ],
+        responses={200: SubforumSerializer(many=True)}
+    )
+    @rate_limit_general
+    def get(self, request, forum_id):
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        try:
+            ForumService.get_forum_by_id(forum_id)
+        except NotFoundError as e:
+            return Response({'error': {'code': 'NOT_FOUND', 'message': str(e)}}, status=status.HTTP_404_NOT_FOUND)
+
+        subforums = SubforumRepository.get_by_forum(forum_id, page, page_size)
+
+        data = [{
+            'subforum_id': str(s.subforum_id),
+            'name': s.name,
+            'description': s.description,
+            'parent_forum_id': str(s.parent_forum_id) if s.parent_forum_id else None,
+            'post_count': s.post_count,
+            'created_at': s.created_at
+        } for s in subforums]
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class CreateForumSubforumView(APIView):
+    """Create a subforum under a forum."""
+
+    permission_classes = [IsAuthenticated, IsNotBanned]
+
+    @swagger_auto_schema(
+        operation_description="Create a subforum under a forum",
+        request_body=CreateSubforumSerializer,
+        responses={201: SubforumSerializer}
+    )
+    @rate_limit_general
+    @transaction.atomic
+    def post(self, request, forum_id):
+        serializer = CreateSubforumSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            # ensure forum exists
+            ForumService.get_forum_by_id(forum_id)
+
+            # validate fields consistently
+            name = Validator.validate_forum_name(serializer.validated_data['name'])
+            description = Validator.validate_description(serializer.validated_data['description'])
+
+            subforum = SubforumRepository.create(
+                creator_id=str(request.user.user_id),
+                subforum_name=name,
+                description=description,
+                parent_domain_id=None,
+                parent_forum_id=forum_id
+            )
+
+            # Audit
+            ip_address = get_client_ip(request)
+            AuditLogRepository.create(
+                user_id=str(request.user.user_id),
+                action_type='subforum_created',
+                resource_type='subforum',
+                resource_id=str(subforum.subforum_id),
+                details={'forum_id': forum_id},
+                ip_address=ip_address
+            )
+
+            return Response({
+                'subforum_id': str(subforum.subforum_id),
+                'name': subforum.name,
+                'description': subforum.description,
+                'parent_forum_id': str(subforum.parent_forum_id) if subforum.parent_forum_id else None,
+                'created_at': subforum.created_at
+            }, status=status.HTTP_201_CREATED)
+        except (ValidationError, NotFoundError) as e:
+            return Response({'error': {'code': 'VALIDATION_ERROR', 'message': str(e)}}, status=status.HTTP_400_BAD_REQUEST)
 

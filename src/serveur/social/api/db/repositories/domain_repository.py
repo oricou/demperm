@@ -38,6 +38,25 @@ class DomainRepository:
             description=description,
             icon_url=icon_url
         )
+
+    @staticmethod
+    def update(domain: Domain, domain_name: Optional[str] = None,
+               description: Optional[str] = None, icon_url: Optional[str] = None) -> Domain:
+        """Update an existing domain instance and persist changes."""
+        if domain_name is not None:
+            domain.domain_name = domain_name
+        if description is not None:
+            domain.description = description
+        if icon_url is not None:
+            domain.icon_url = icon_url
+        domain.save()
+        return domain
+
+    @staticmethod
+    def delete(domain_id: str) -> bool:
+        """Delete a domain by id. Returns True if a row was removed."""
+        deleted, _ = Domain.objects.filter(domain_id=domain_id).delete()
+        return deleted > 0
     
     @staticmethod
     def increment_subforum_count(domain_id: str) -> None:

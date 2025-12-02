@@ -3,6 +3,7 @@ Domain entity models for database layer.
 """
 import uuid
 from django.db import models
+from django.core.validators import MinLengthValidator
 from db.entities.user_entity import User
 
 
@@ -37,7 +38,12 @@ class Forum(models.Model):
     
     forum_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_forums')
-    forum_name = models.CharField(max_length=200, unique=True, db_index=True)
+    forum_name = models.CharField(
+        max_length=200,
+        unique=True,
+        db_index=True,
+        validators=[MinLengthValidator(3)]
+    )
     description = models.TextField(max_length=1000, null=True, blank=True)
     forum_image_url = models.URLField(max_length=500, null=True, blank=True)
     member_count = models.IntegerField(default=0)
@@ -54,6 +60,11 @@ class Forum(models.Model):
         ]
     
     def __str__(self):
+        return self.forum_name
+
+    @property
+    def name(self):
+        """Compatibility alias for API layer: return forum name."""
         return self.forum_name
 
 
@@ -77,7 +88,7 @@ class Subforum(models.Model):
         related_name='subforums'
     )
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_subforums')
-    subforum_name = models.CharField(max_length=200)
+    subforum_name = models.CharField(max_length=200, validators=[MinLengthValidator(3)])
     description = models.TextField(max_length=1000, null=True, blank=True)
     post_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -107,19 +118,7 @@ class Subforum(models.Model):
     @property
     def name(self):
         return self.subforum_name
-
-    @property
-    def parent_domain_id(self):
-        if self.parent_domain_id is not None:
-            # Django already provides <fk>_id, but ensure string or None
-            return str(self.parent_domain_id)
-        return None
-
-    @property
-    def parent_forum_id(self):
-        if self.parent_forum_id is not None:
-            return str(self.parent_forum_id)
-        return None
+    
 
 
 class Membership(models.Model):

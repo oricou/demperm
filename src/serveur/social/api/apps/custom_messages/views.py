@@ -9,8 +9,8 @@ from drf_yasg import openapi
 
 from services.apps_services.message_service import MessageService
 from common.permissions import IsAuthenticated, IsNotBanned
-from common.rate_limiters import rate_limit_message_send, rate_limit_message_send
-from common.exceptions import NotFoundError, ValidationError
+from common.rate_limiters import rate_limit_message_send
+from common.exceptions import NotFoundError, ValidationError, PermissionDeniedError
 from common.utils import get_client_ip
 from .serializers import SendMessageSerializer, MessageSerializer, ConversationSerializer
 
@@ -35,6 +35,19 @@ class ConversationsListView(APIView):
         page_size = int(request.query_params.get('page_size', 20))
         
         conversations = MessageService.get_conversations(str(request.user.user_id), page, page_size)
+        
+        # Serialize last_message objects
+        for conv in conversations:
+            if 'last_message' in conv and conv['last_message']:
+                msg = conv['last_message']
+                conv['last_message'] = {
+                    'message_id': str(msg.message_id),
+                    'sender_id': str(msg.sender_id),
+                    'receiver_id': str(msg.receiver_id),
+                    'encrypted_content': msg.encrypted_content,
+                    'is_read': msg.is_read,
+                    'created_at': msg.created_at.isoformat()
+                }
         
         return Response(conversations, status=status.HTTP_200_OK)
 
@@ -64,8 +77,10 @@ class ConversationView(APIView):
             'message_id': str(msg.message_id),
             'sender_id': str(msg.sender_id),
             'receiver_id': str(msg.receiver_id),
-            'encrypted_content_sender': msg.encrypted_content_sender,
-            'encrypted_content_receiver': msg.encrypted_content_receiver,
+            'encrypted_content': msg.encrypted_content,
+            'encryption_key_sender': msg.encryption_key_sender,
+            'encryption_key_receiver': msg.encryption_key_receiver,
+            'is_read': msg.is_read,
             'created_at': msg.created_at
         } for msg in messages]
         
@@ -103,11 +118,48 @@ class SendMessageView(APIView):
                 'message_id': str(message.message_id),
                 'sender_id': str(message.sender_id),
                 'receiver_id': str(message.receiver_id),
-                'encrypted_content_sender': message.encrypted_content_sender,
-                'encrypted_content_receiver': message.encrypted_content_receiver,
+                'encrypted_content': message.encrypted_content,
+                'encryption_key_sender': message.encryption_key_sender,
+                'encryption_key_receiver': message.encryption_key_receiver,
+                'is_read': message.is_read,
                 'created_at': message.created_at
             }, status=status.HTTP_201_CREATED)
         except (ValidationError, NotFoundError) as e:
+            return Response(
+                {'error': {'code': 'ERROR', 'message': str(e)}},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class DeleteConversationView(APIView):
+    """Delete a conversation with a specific user."""
+    
+    permission_classes = [IsAuthenticated, IsNotBanned]
+    
+    @swagger_auto_schema(
+        operation_description="Delete conversation with a user (soft delete)",
+        responses={
+            204: openapi.Response(description="Conversation deleted"),
+            404: openapi.Response(description="User not found"),
+            400: openapi.Response(description="Bad request")
+        }
+    )
+    def delete(self, request, user_id):
+        """Delete conversation."""
+        try:
+            ip_address = get_client_ip(request)
+            MessageService.delete_conversation(
+                user_id=str(request.user.user_id),
+                other_user_id=user_id,
+                ip_address=ip_address
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except NotFoundError as e:
+            return Response(
+                {'error': {'code': 'NOT_FOUND', 'message': str(e)}},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except (ValidationError, PermissionDeniedError) as e:
             return Response(
                 {'error': {'code': 'ERROR', 'message': str(e)}},
                 status=status.HTTP_400_BAD_REQUEST

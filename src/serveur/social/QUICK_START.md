@@ -33,44 +33,17 @@ docker compose logs -f api
 # Vérifier que le docker-entrypoint.sh est bien dans le format LF
 ```
 
-### 4. Initialiser la base de données avec deux users
+### 4. Configuration Firebase
+
+L'application utilise **Firebase Authentication**. Consultez `FIREBASE_SETUP.md` pour la configuration complète.
 
 ```bash
-docker compose exec api python /app/api/manage.py shell
-from db.entities.user_entity import User, UserProfile, UserSettings
-from rest_framework_simplejwt.tokens import RefreshToken
+# 1. Obtenir le fichier de credentials Firebase
+# Télécharger depuis Firebase Console > Project Settings > Service Accounts
+# Placer le fichier dans src/serveur/social/firebase-adminsdk-key.json
 
-# Création utilisateur 1
-user1, created1 = User.objects.get_or_create(
-    email='alice@example.com',
-    defaults={'username': 'alice', 'google_id': 'google_alice'}
-)
-if created1:
-    UserProfile.objects.create(user=user1, display_name='Alice Dupont')
-    UserSettings.objects.create(user=user1)
-
-# Création utilisateur 2
-user2, created2 = User.objects.get_or_create(
-    email='bob@example.com',
-    defaults={'username': 'bob', 'google_id': 'google_bob'}
-)
-if created2:
-    UserProfile.objects.create(user=user2, display_name='Bob Martin')
-    UserSettings.objects.create(user=user2)
-
-# Génération des tokens
-token1 = str(RefreshToken.for_user(user1).access_token)
-token2 = str(RefreshToken.for_user(user2).access_token)
-
-print("\n" + "="*70)
-print("🔑 TOKEN ALICE (user1):")
-print("="*70)
-print(token1)
-print("\n" + "="*70)
-print("🔑 TOKEN BOB (user2):")
-print("="*70)
-print(token2)
-print("="*70)
+# 2. Configurer le .env
+FIREBASE_SERVICE_ACCOUNT_KEY=/app/firebase-adminsdk-key.json
 ```
 
 ### 5. Tester l'API
@@ -80,19 +53,48 @@ L'API est maintenant accessible sur :
 - **Swagger UI** : http://localhost:8000/api/v1/docs/
 - **ReDoc** : http://localhost:8000/api/v1/redoc/
 
-### 6. Tester l'authentification
+### 6. Tester l'authentification Firebase dans Swagger
+
+Pour tester les endpoints protégés dans Swagger UI :
+
+1. **Obtenir un Firebase ID Token** :
+   - Via votre application frontend (React Native/Web) après login Firebase
+   - Ou via un script de test (voir ci-dessous)
+
+2. **Dans Swagger UI** :
+   - Cliquez sur le bouton **"Authorize"** 🔓 en haut à droite
+   - Entrez : `Bearer <votre_firebase_id_token>`
+   - Cliquez sur "Authorize"
+   - Tous les appels incluront maintenant l'authentification
+
+#### Script Python pour obtenir un token Firebase de test
+
+```python
+# test_firebase_auth.py
+import firebase_admin
+from firebase_admin import credentials, auth
+
+# Initialiser Firebase Admin SDK
+cred = credentials.Certificate("firebase-adminsdk-key.json")
+firebase_admin.initialize_app(cred)
+
+# Créer un custom token pour un utilisateur de test
+uid = "test_user_123"
+custom_token = auth.create_custom_token(uid)
+print(f"Custom Token: {custom_token.decode()}")
+
+# Note: Le custom token doit être échangé contre un ID token
+# via l'API Firebase Authentication côté client
+print("\nUtilisez ce token côté client pour obtenir un ID token:")
+print("https://firebase.google.com/docs/auth/admin/create-custom-tokens")
+```
+
+#### Tester avec curl
 
 ```bash
-# Obtenir l'URL d'authentification Google
-curl -X POST http://localhost:8000/api/v1/auth/google/url/ \
-  -H "Content-Type: application/json" \
-  -d '{"redirect_uri": "http://localhost:3000/auth/callback"}'
-
-# Réponse :
-# {
-#   "auth_url": "https://accounts.google.com/o/oauth2/v2/auth?...",
-#   "state": "..."
-# }
+# Remplacer <FIREBASE_ID_TOKEN> par votre token
+curl -X GET http://localhost:8000/api/v1/users/me/ \
+  -H "Authorization: Bearer <FIREBASE_ID_TOKEN>"
 ```
 
 ## 🔧 Développement local (sans Docker)
