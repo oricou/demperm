@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import styles from '@/styles/vote_style';
-import { useUser } from '../contexts/user-context';
+import { useUser } from '@/contexts/user-context';
 
 
 export default function ConnectionScreen() {
