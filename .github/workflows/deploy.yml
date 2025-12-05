@@ -1,0 +1,65 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ vars.VM_HOST }}
+          username: ${{ vars.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ 22 }}
+          script: |
+            # Aller dans le dossier du projet et pull les dernières modifications
+            cd ~/demperm
+            git pull origin main
+            
+            # Déployer le service social
+            cd ~/demperm/src/serveur/social
+            cp ~/docker-compose.social.yml docker-compose.yml
+            docker compose down
+            docker compose up -d --force-recreate --build
+            
+            # Déployer le service vote
+            cd ~/demperm/src/serveur/vote
+            cp ~/docker-compose.vote.yml docker-compose.yml
+            docker compose down
+            docker compose up -d --force-recreate --build
+
+      - name: Send Discord Notification (Success)
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "✅ Déploiement réussi"
+          description: |
+            Le déploiement sur la VM a été effectué avec succès !
+            
+            **Branch:** main
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+          color: 0x00FF00
+
+      - name: Send Discord Notification (Failure)
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          title: "❌ Échec du déploiement"
+          description: |
+            Le déploiement sur la VM a échoué !
+            
+            **Branch:** main
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+            
+            Vérifiez les logs pour plus de détails.
+          color: 0xFF0000
