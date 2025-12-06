@@ -20,6 +20,7 @@ jobs:
           script: |
             # Aller dans le dossier du projet et pull les dernières modifications
             cd ~/demperm
+            git stash
             git pull origin main
             
             # Déployer le service social
