@@ -16,8 +16,7 @@ class StatsDailyView(APIView):
     """
 
     def get(self, request, userId):
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         if current_user_id is None:
             return Response(
@@ -44,8 +43,7 @@ class StatsMonthlyView(APIView):
     """
 
     def get(self, request, userId):
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         if current_user_id is None:
             return Response(
@@ -73,8 +71,7 @@ class StatsChartView(APIView):
     """
 
     def get(self, request):
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         if current_user_id is None:
             return Response(

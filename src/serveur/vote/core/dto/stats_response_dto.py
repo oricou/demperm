@@ -6,7 +6,7 @@ class StatsDailyField(serializers.Serializer):
     count = serializers.IntegerField()
 
 class StatsDailySerializer(serializers.Serializer):
-    userId = serializers.UUIDField()
+    userId = serializers.CharField()
     daily = serializers.ListField(child=StatsDailyField())
     delta = serializers.IntegerField()
 
@@ -16,13 +16,13 @@ class StatsMonthlyField(serializers.Serializer):
     count = serializers.IntegerField()
 
 class StatsMonthlySerializer(serializers.Serializer):
-    userId = serializers.UUIDField()
+    userId = serializers.CharField()
     monthly = serializers.ListField(child=StatsMonthlyField())
     delta = serializers.IntegerField()
 
 
 class StatsChartDomainField(serializers.Serializer):
-    userId = serializers.UUIDField()
+    userId = serializers.CharField()
     votes = serializers.ListField(child=StatsDailyField())
 
 class StatsChartSerializer(serializers.Serializer):
