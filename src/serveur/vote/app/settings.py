@@ -75,7 +75,7 @@ TEMPLATES = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "app.security_config.SimpleBearerAuthentication",
+        "app.security_config.FirebaseAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -149,6 +149,16 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 
     "SECURITY": [{"bearerAuth": []}],
+
+    "COMPONENTS": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    }
 }
 
 # CORS Configuration

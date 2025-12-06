@@ -1,43 +1,56 @@
-from dataclasses import dataclass
-
+from typing import Optional, Tuple
+from django.conf import settings
 from rest_framework.authentication import BaseAuthentication
 from rest_framework import exceptions
 
+import firebase_admin
+from firebase_admin import auth as firebase_auth
+from firebase_admin import credentials
 
-@dataclass
-class SimpleUser:
-    id: str
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
+
+class FirebaseUser:
+    """Minimal user object holding only the Firebase UID."""
+    
+    def __init__(self, uid: str):
+        self.id = uid
 
     @property
     def is_authenticated(self) -> bool:
-        # TODO: Obligatoire. A changer plus tard avec vrai authent
         return True
 
 
-class SimpleBearerAuthentication(BaseAuthentication):
-    """
-    Auth simplifiée :
-    - Attend un header: Authorization: Bearer <user-id>
-    - Ne vérifie pas de JWT, juste la présence du token
-    """
+class FirebaseAuthentication(BaseAuthentication):
 
-    keyword = "Bearer"
+    def authenticate(self, request) -> Optional[Tuple[FirebaseUser, str]]:
 
-    def authenticate(self, request):
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
+        header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not header:
             return None
 
-        parts = auth_header.split()
+        parts = header.split()
+        if len(parts) != 2:
+            return None
 
-        if len(parts) != 2 or parts[0] != self.keyword:
-            raise exceptions.AuthenticationFailed("Invalid Authorization header")
+        scheme, token = parts
+        if scheme.lower() != 'bearer':
+            return None
 
-        token = parts[1].strip()
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_KEY)
+            firebase_admin.initialize_app(cred)
 
-        if not token:
-            raise exceptions.AuthenticationFailed("Empty bearer token")
+        try:
+            decoded = firebase_auth.verify_id_token(token)
+        except Exception:
+            raise exceptions.AuthenticationFailed("Invalid or expired Firebase token")
 
-        user = SimpleUser(id=token)
-        return user, None
+        uid = decoded.get("uid")
+        if not uid:
+            raise exceptions.AuthenticationFailed("Firebase token missing UID")
+
+        # Keep UID in request if needed
+        request.firebase_uid = uid
+
+        user = FirebaseUser(uid=uid)
+        return (user, token)
