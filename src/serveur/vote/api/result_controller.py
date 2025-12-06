@@ -57,8 +57,7 @@ class ResultView(APIView):
         """
         Récupère les résultats agrégés des votes.
         """
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         if current_user_id is None:
             return Response(

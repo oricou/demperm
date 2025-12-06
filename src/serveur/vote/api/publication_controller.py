@@ -29,8 +29,7 @@ class PublicationSettingView(APIView):
         description="Récupère les paramètres de publication d’un utilisateur.",
     )
     def get(self, request):
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         setting = PublicationService.get_publication_setting(current_user_id)
         response_serializer = PublicationSettingSerializer(setting)
@@ -51,8 +50,7 @@ class PublicationSettingView(APIView):
         ),
     )
     def put(self, request):
-        user = getattr(request, "user", None)
-        current_user_id = getattr(user, "id", None)
+        current_user_id = request.user.id
 
         serializer = PublicationUpdateRequestSerializer(data=request.data)
         if not serializer.is_valid():
