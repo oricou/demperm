@@ -1,3 +1,4 @@
+import datetime
 import random
 from db.repository.vote_repository import VoteRepository
 
@@ -19,27 +20,27 @@ class VoteValidationService:
         # Récupérer la liste des relations VOTED non encore traitées
         vote_ids = VoteRepository.fetch_unprocessed_votes()
 
-        # Si aucun vote à traiter, on sort
-        if not vote_ids:
-            return
+        # Si aucun vote à traiter, on passe au calcule des stats
+        if vote_ids:
+            # Mélanger les IDs pour éviter un biais d'ordre
+            random.shuffle(vote_ids)
+            # Déterminer le nombre de votes à valider (80 %)
+            cutoff = int(len(vote_ids) * 0.8) + 1
+
+            # Séparer les votes validés et rejetés
+            validated = vote_ids[:cutoff]
+            rejected = vote_ids[cutoff:]
+
+            # Logique de validation des votes de validated
+            for vote_id in validated:
+                if not VoteValidationService.validate_vote(vote_id):
+                    rejected.append(vote_id)
+
+            # Marquer les votes rejetés dans la base
+            if rejected:
+                VoteRepository.mark_votes_invalid(rejected)
         
-        # Mélanger les IDs pour éviter un biais d'ordre
-        random.shuffle(vote_ids)
-        # Déterminer le nombre de votes à valider (80 %)
-        cutoff = int(len(vote_ids) * 0.8) + 1
-
-        # Séparer les votes validés et rejetés
-        validated = vote_ids[:cutoff]
-        rejected = vote_ids[cutoff:]
-
-        # Logique de validation des votes de validated
-        for vote_id in validated:
-            if not VoteValidationService.validate_vote(vote_id):
-                rejected.append(vote_id)
-
-        # Marquer les votes rejetés dans la base
-        if rejected:
-            VoteRepository.mark_votes_invalid(rejected)
+        VoteValidationService.finalize_daily_stats()
 
     @staticmethod
     def remove_previous_votes():
@@ -74,3 +75,10 @@ class VoteValidationService:
 
         return True
         
+    @staticmethod
+    def finalize_daily_stats():
+        """
+        Finalise les statistiques journalières en mettant à jour la date
+        du dernier calcul et en ajoutant les statistiques journalières
+        """
+        VoteRepository.append_daily_stats(datetime.date.today())
