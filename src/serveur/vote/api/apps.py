@@ -4,4 +4,4 @@ class ApiConfig(AppConfig):
     name = "api"
 
     def ready(self):
-        import api.schema_extensions
+        import app.schema_extensions

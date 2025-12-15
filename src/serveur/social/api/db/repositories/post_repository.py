@@ -109,7 +109,7 @@ class CommentRepository:
         return deleted > 0
     
     @staticmethod
-    def get_by_post(post_id: str, page: int = 1, page_size: int = 20) -> List[Comment]:
+    def get_by_post(post_id: str, page: int = 1, page_size: int = 20, sort_by: str = "created_at") -> List[Comment]:
         """Get comments for a post."""
         offset = (page - 1) * page_size
         return Comment.objects.filter(
