@@ -120,7 +120,7 @@ def test_chart(sample_data, driver):
     data = response.json()
     print(data)
     assert len(data) == 2
-    first_chart = data[1]
+    first_chart = data[0] if data[0]['domain'] == 'france' else data[1]
     assert first_chart['domain'] == 'france'
     assert len(first_chart['users']) == 2
     first_user = first_chart['users'][0]
