@@ -192,6 +192,9 @@ FIREBASE_SERVICE_ACCOUNT_KEY=*-firebase-adminsdk-*.json
 SECURE_SSL_REDIRECT=False
 SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False
+
+# Other Settings
+MIN_PUBLIC_VOTES=5
 ```
 
 ## Lancer le projet

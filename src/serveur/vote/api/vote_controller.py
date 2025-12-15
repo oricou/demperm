@@ -169,6 +169,7 @@ class VotesByVoterMeView(APIView):
         votes = VoteService.get_votes_by_voter(
             voter_id=str(voter_id),
             domain=domain,
+            is_me=True,
         )
 
         serializer = VoteSerializer(votes, many=True)
