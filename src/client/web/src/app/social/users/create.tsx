@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Card, CardContent, CardHeader, TextField, FormControlLabel, Checkbox, Alert, Button, Typography } from '@mui/material'
-import { apiClient } from '../../../domains/vote/api/apiClient'
+import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
 import { getCredentials, setUser } from '../../../shared/auth'
 
 export default function CreateProfilePage() {
@@ -28,10 +28,24 @@ export default function CreateProfilePage() {
       return
     }
 
+    const trimmedUsername = username.trim()
+
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 50) {
+      setError('Le pseudo doit contenir entre 3 et 50 caractères')
+      return
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
+      // Même contrainte que le Validator backend :
+      // "Username can only contain letters, numbers, _ and -"
+      setError('Username can only contain letters, numbers, _ and -')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = await apiClient.post<any, any>('/api/v1/users/', {
-        username: username.trim(),
+        username: trimmedUsername,
         bio: bio.trim() || null,
         location: location.trim() || null,
         // Backend expects a boolean: True = public, False = private
@@ -41,7 +55,13 @@ export default function CreateProfilePage() {
       setUser(payload)
       navigate('/profil', { replace: true })
     } catch (err: any) {
-      const message = err?.message || "Erreur lors de la création du profil"
+      if (err instanceof ApiHttpError && err.status === 400 && err.message) {
+        // Le backend renvoie déjà un message de validation (dont le cas username).
+        setError(err.message)
+        return
+      }
+
+      const message = err?.message || 'Erreur lors de la création du profil'
       setError(message)
     } finally {
       setLoading(false)

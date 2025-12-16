@@ -1,7 +1,7 @@
 import React, { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
-import { clearCredentials } from '../../../shared/auth'
+import { clearCredentials, getUser } from '../../../shared/auth'
 import { Input } from '../../../components/ui/Input'
 import { SidebarList } from '../../../components/composite/SidebarList'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card'
@@ -13,6 +13,7 @@ type ForumSummary = {
   id: string
   name: string
   description: string
+  creatorId: string | null
   memberCount: number
   postCount: number
   createdAt: string
@@ -38,10 +39,22 @@ type PostDetail = {
   id: string
   title: string
   content: string
+  authorId: string
   authorUsername: string
   createdAt: string
   likeCount: number
   commentCount: number
+  likedByMe: boolean
+}
+
+type CommentItem = {
+  id: string
+  postId: string
+  authorId: string
+  authorUsername: string
+  content: string
+  createdAt: string
+  parentCommentId: string | null
 }
 
 type SidebarItem = { id: string; title: string; subtitle?: string; meta?: string }
@@ -55,6 +68,10 @@ type ApiForum = {
   post_count: number
   created_at: string
   joined_at?: string
+}
+
+type AuthUser = {
+  user_id: string
 }
 
 type ApiSubforum = {
@@ -89,6 +106,25 @@ type ApiPostDetail = {
   updated_at: string
 }
 
+type ApiPostLike = {
+  like_id: string
+  user_id: string
+  username: string
+  post_id: string
+  created_at: string
+}
+
+type ApiComment = {
+  comment_id: string
+  post_id: string
+  author_id: string
+  author_username: string
+  parent_comment_id: string | null
+  content: string
+  created_at: string
+  updated_at: string
+}
+
 /**
  * Page forums connectée au backend social :
  * - Colonne de gauche : navigation + "Mes forums" (forums où l'utilisateur est membre)
@@ -106,15 +142,28 @@ export default function ForumHomePage() {
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [selectedPost, setSelectedPost] = useState<PostDetail | null>(null)
   const [isDetailView, setIsDetailView] = useState(false)
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false)
+  const [newComment, setNewComment] = useState('')
   const [isCreatePostModalOpen, setCreatePostModalOpen] = useState(false)
   const [isCreateForumModalOpen, setCreateForumModalOpen] = useState(false)
   const [isCreateSubforumModalOpen, setCreateSubforumModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isMembershipLoading, setIsMembershipLoading] = useState(false)
+  const [isPostActionLoading, setIsPostActionLoading] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     void loadInitialData()
+  }, [])
+
+  useEffect(() => {
+    const stored = getUser<AuthUser>()
+    if (stored?.user_id) {
+      setCurrentUserId(stored.user_id)
+    }
   }, [])
 
   async function loadInitialData() {
@@ -189,6 +238,7 @@ export default function ForumHomePage() {
     setActivePostId(null)
     setSelectedPost(null)
     setIsDetailView(false)
+    setComments([])
 
     try {
       const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
@@ -212,21 +262,12 @@ export default function ForumHomePage() {
     setActivePostId(postId)
     setIsDetailView(true)
     setSelectedPost(null)
+     setComments([])
 
     try {
-      const data = await apiClient.get<ApiPostDetail>(`/api/v1/posts/${postId}/`)
-
-      const detail: PostDetail = {
-        id: data.post_id,
-        title: data.title,
-        content: data.content,
-        authorUsername: data.author_username,
-        createdAt: data.created_at,
-        likeCount: data.like_count,
-        commentCount: data.comment_count,
-      }
-
+      const detail = await fetchPostDetailWithLikeState(postId)
       setSelectedPost(detail)
+      await loadComments(postId)
     } catch (err) {
       handleHttpError(err, "Erreur lors du chargement du post")
       setIsDetailView(false)
@@ -253,6 +294,150 @@ export default function ForumHomePage() {
     setActivePostId(null)
     setSelectedPost(null)
     setIsDetailView(false)
+    setComments([])
+  }
+
+  async function handleLikePost(postId: string) {
+    setIsPostActionLoading(true)
+    try {
+      await apiClient.post(`/api/v1/posts/${postId}/like/`, {})
+      const detail = await fetchPostDetailWithLikeState(postId)
+      setSelectedPost(detail)
+    } catch (err) {
+      handleHttpError(err, 'Erreur lors du like du post')
+    } finally {
+      setIsPostActionLoading(false)
+    }
+  }
+
+  async function handleUnlikePost(postId: string) {
+    setIsPostActionLoading(true)
+    try {
+      await apiClient.delete(`/api/v1/posts/${postId}/unlike/`)
+      const detail = await fetchPostDetailWithLikeState(postId)
+      setSelectedPost(detail)
+    } catch (err) {
+      handleHttpError(err, 'Erreur lors du retrait du like')
+    } finally {
+      setIsPostActionLoading(false)
+    }
+  }
+
+  async function handleDeletePost(postId: string) {
+    setIsPostActionLoading(true)
+    try {
+      await apiClient.delete(`/api/v1/posts/${postId}/delete/`)
+      setSelectedPost(null)
+      setIsDetailView(false)
+      setComments([])
+      if (activeSubforumId) {
+        await loadSubforum(activeSubforumId)
+      }
+    } catch (err) {
+      handleHttpError(err, 'Erreur lors de la suppression du post')
+    } finally {
+      setIsPostActionLoading(false)
+    }
+  }
+
+  async function fetchPostDetailWithLikeState(postId: string): Promise<PostDetail> {
+    const data = await apiClient.get<ApiPostDetail>(`/api/v1/posts/${postId}/`)
+
+    let likedByMe = false
+    if (currentUserId && data.like_count > 0) {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 100 })
+      try {
+        const likes = await apiClient.get<ApiPostLike[]>(`/api/v1/posts/${postId}/likes/${query}`)
+        likedByMe = likes.some((like) => like.user_id === currentUserId)
+      } catch (err) {
+        // On ne bloque pas l'affichage si la récupération des likes échoue.
+        // eslint-disable-next-line no-console
+        console.warn('Erreur lors de la récupération des likes', err)
+      }
+    }
+
+    return {
+      id: data.post_id,
+      title: data.title,
+      content: data.content,
+      authorId: data.author_id,
+      authorUsername: data.author_username,
+      createdAt: data.created_at,
+      likeCount: data.like_count,
+      commentCount: data.comment_count,
+      likedByMe,
+    }
+  }
+
+  async function loadComments(postId: string) {
+    setIsCommentsLoading(true)
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 50, sort_by: 'created_at' })
+      const data = await apiClient.get<ApiComment[]>(`/api/v1/comments/posts/${postId}/${query}`)
+
+      const mapped: CommentItem[] = data.map((comment) => ({
+        id: comment.comment_id,
+        postId: comment.post_id,
+        authorId: comment.author_id,
+        authorUsername: comment.author_username,
+        content: comment.content,
+        createdAt: comment.created_at,
+        parentCommentId: comment.parent_comment_id,
+      }))
+
+      setComments(mapped)
+    } catch (err) {
+      handleHttpError(err, 'Erreur lors du chargement des commentaires')
+    } finally {
+      setIsCommentsLoading(false)
+    }
+  }
+
+  async function handleCreateComment(event: React.FormEvent) {
+    event.preventDefault()
+    if (!selectedPost || !newComment.trim()) return
+
+    try {
+      await apiClient.post(`/api/v1/comments/posts/${selectedPost.id}/create/`, { content: newComment.trim() })
+      setNewComment('')
+      await loadComments(selectedPost.id)
+      setSelectedPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : prev))
+    } catch (err) {
+      handleHttpError(err, "Erreur lors de la création du commentaire")
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!selectedPost) return
+
+    try {
+      await apiClient.delete(`/api/v1/comments/${commentId}/delete/`)
+      await loadComments(selectedPost.id)
+      setSelectedPost((prev) => (prev && prev.commentCount > 0 ? { ...prev, commentCount: prev.commentCount - 1 } : prev))
+    } catch (err) {
+      handleHttpError(err, 'Erreur lors de la suppression du commentaire')
+    }
+  }
+
+  async function handleToggleMembership() {
+    if (!activeForumId) return
+
+    const isMember = myForums.some((forum) => forum.id === activeForumId)
+
+    setIsMembershipLoading(true)
+    try {
+      if (isMember) {
+        await apiClient.delete(`/api/v1/forums/${activeForumId}/leave/`)
+      } else {
+        await apiClient.post(`/api/v1/forums/${activeForumId}/join/`, {})
+      }
+
+      await loadInitialData()
+    } catch (err) {
+      handleHttpError(err, isMember ? 'Erreur lors de la sortie du forum' : "Erreur lors de l'adhésion au forum")
+    } finally {
+      setIsMembershipLoading(false)
+    }
   }
 
   function handleHttpError(err: unknown, defaultMessage: string) {
@@ -272,10 +457,30 @@ export default function ForumHomePage() {
     return forum?.name ?? null
   }, [myForums, trendingForums, activeForumId])
 
+  const activeForum = useMemo(() => {
+    const all = [...myForums, ...trendingForums]
+    return all.find((f) => f.id === activeForumId) ?? null
+  }, [myForums, trendingForums, activeForumId])
+
   const activeSubforumName = useMemo(() => {
     const sub = subforums.find((s) => s.id === activeSubforumId)
     return sub?.name ?? null
   }, [subforums, activeSubforumId])
+
+  const isMemberOfActiveForum = useMemo(
+    () => (activeForumId ? myForums.some((forum) => forum.id === activeForumId) : false),
+    [myForums, activeForumId]
+  )
+
+  const isCreatorOfActiveForum = useMemo(
+    () => Boolean(activeForum && currentUserId && activeForum.creatorId === currentUserId),
+    [activeForum, currentUserId]
+  )
+
+  const canDeleteSelectedPost = useMemo(
+    () => Boolean(selectedPost && currentUserId && selectedPost.authorId === currentUserId),
+    [selectedPost, currentUserId]
+  )
 
   const myForumItems: SidebarItem[] = useMemo(
     () =>
@@ -394,10 +599,23 @@ export default function ForumHomePage() {
             <Card className="border border-border bg-white/80 shadow-sm">
               <CardHeader className="space-y-3 px-5 pt-5">
                 <header className="flex flex-col gap-1 text-xs uppercase tracking-wide text-muted md:flex-row md:items-center md:justify-between">
-                  <p>
-                    {activeForumName ? `r/${activeForumName}` : 'Flux général des forums'}
-                    {activeSubforumName ? ` • ${activeSubforumName}` : ''}
-                  </p>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+                    <p>
+                      {activeForumName ? `r/${activeForumName}` : 'Flux général des forums'}
+                      {activeSubforumName ? ` • ${activeSubforumName}` : ''}
+                    </p>
+                    {activeForumId && !isCreatorOfActiveForum && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isMemberOfActiveForum ? 'outline' : 'primary'}
+                        onClick={() => void handleToggleMembership()}
+                        disabled={isMembershipLoading}
+                      >
+                        {isMemberOfActiveForum ? 'Quitter le forum' : 'Rejoindre le forum'}
+                      </Button>
+                    )}
+                  </div>
                   <p>{activePostId ? 'Post sélectionné' : 'Aucun post sélectionné'}</p>
                 </header>
 
@@ -439,11 +657,110 @@ export default function ForumHomePage() {
                 )}
               </CardHeader>
               {isDetailView && selectedPost && (
-                <CardContent className="space-y-4 px-5 pb-5">
-                  <p className="whitespace-pre-wrap text-sm text-foreground">{selectedPost.content}</p>
-                  <p className="text-xs text-muted">
-                    👍 {selectedPost.likeCount} • 💬 {selectedPost.commentCount}
-                  </p>
+                <CardContent className="space-y-6 px-5 pb-5">
+                  <div className="space-y-4">
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{selectedPost.content}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+                      <p>
+                        👍 {selectedPost.likeCount} • 💬 {selectedPost.commentCount}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {currentUserId && !selectedPost.likedByMe && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={isPostActionLoading}
+                            onClick={() => void handleLikePost(selectedPost.id)}
+                          >
+                            J'aime
+                          </Button>
+                        )}
+                        {currentUserId && selectedPost.likedByMe && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={isPostActionLoading}
+                            onClick={() => void handleUnlikePost(selectedPost.id)}
+                          >
+                            Retirer le like
+                          </Button>
+                        )}
+                        {canDeleteSelectedPost && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-danger"
+                            disabled={isPostActionLoading}
+                            onClick={() => void handleDeletePost(selectedPost.id)}
+                          >
+                            Supprimer le post
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border-t border-border pt-4">
+                    <h3 className="text-sm font-semibold text-foreground">Commentaires</h3>
+
+                    {isCommentsLoading ? (
+                      <p className="text-xs text-muted">Chargement des commentaires…</p>
+                    ) : comments.length === 0 ? (
+                      <p className="text-xs text-muted">Aucun commentaire pour l'instant.</p>
+                    ) : (
+                      <ul className="space-y-3 text-sm">
+                        {comments.map((comment) => (
+                          <li
+                            key={comment.id}
+                            className="rounded-2xl border border-border/60 bg-background-soft px-3 py-2"
+                          >
+                            <div className="flex items-center justify-between text-[11px] text-muted">
+                              <span>
+                                u/{comment.authorUsername} •{' '}
+                                {new Date(comment.createdAt).toLocaleString('fr-FR')}
+                              </span>
+                              {currentUserId && currentUserId === comment.authorId && (
+                                <button
+                                  type="button"
+                                  className="text-[11px] text-danger hover:underline"
+                                  onClick={() => void handleDeleteComment(comment.id)}
+                                >
+                                  Supprimer
+                                </button>
+                              )}
+                            </div>
+                            <p className="mt-1 whitespace-pre-wrap text-[13px] text-foreground">
+                              {comment.content}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {currentUserId && (
+                      <form className="space-y-2" onSubmit={handleCreateComment}>
+                        <textarea
+                          value={newComment}
+                          onChange={(event) => setNewComment(event.target.value)}
+                          className="min-h-[60px] w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                          placeholder="Ajouter un commentaire…"
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant="primary"
+                            disabled={!newComment.trim()}
+                          >
+                            Publier
+                          </Button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -558,6 +875,7 @@ function mapForum(forum: ApiForum): ForumSummary {
     id: forum.forum_id,
     name: forum.name,
     description: forum.description,
+    creatorId: forum.creator_id ?? null,
     memberCount: forum.member_count,
     postCount: forum.post_count,
     createdAt: forum.created_at,

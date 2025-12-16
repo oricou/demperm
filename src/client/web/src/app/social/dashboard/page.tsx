@@ -18,6 +18,18 @@ type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
 
+type ApiUserPost = {
+  post_id: string
+  author_id: string
+  author_username: string
+  subforum_id: string | null
+  title: string
+  content: string
+  like_count: number
+  comment_count: number
+  created_at: string
+}
+
 type ApiUserPayload = {
   user_id: string
   email: string
@@ -82,6 +94,9 @@ export default function SocialDashboardPage() {
 
         setUser(payload)
         applyUserPayload(payload)
+
+        // Charger les posts de l'utilisateur pour la section "Posts" du profil
+        await loadUserPosts()
       } catch (error) {
         if (error instanceof ApiHttpError && error.status === 403) {
           clearCredentials()
@@ -95,6 +110,32 @@ export default function SocialDashboardPage() {
 
     void loadUserFromBackend()
   }, [])
+
+  async function loadUserPosts() {
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 10 })
+      const data = await apiClient.get<ApiUserPost[]>(`/api/v1/posts/me/${query}`)
+
+      const mapped: PostItem[] = data.map((post) => ({
+        id: post.post_id,
+        title: post.title,
+        excerpt: post.content,
+        createdAt: new Date(post.created_at).toLocaleDateString(),
+        comments: post.comment_count,
+        hasAttachments: false,
+      }))
+
+      setPosts(mapped)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du chargement de /posts/me', error)
+    }
+  }
 
   function applyUserPayload(payload: ApiUserPayload) {
     const fullName = payload.profile.display_name || payload.username
@@ -182,6 +223,11 @@ export default function SocialDashboardPage() {
     setMembershipModalOpen(true)
   }, [])
 
+  const handleLogout = useCallback(() => {
+    clearCredentials()
+    navigate('/login', { replace: true })
+  }, [navigate])
+
   return (
     <div className="space-y-6">
       <ProfileHeader
@@ -195,6 +241,8 @@ export default function SocialDashboardPage() {
         editLabel={undefined}
         onPhotoChange={handleAvatarChange}
         photoEditable={false}
+        showLogout
+        onLogout={handleLogout}
       />
 
       <div className="grid gap-6 md:grid-cols-12">

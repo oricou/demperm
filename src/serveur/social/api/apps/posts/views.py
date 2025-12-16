@@ -212,6 +212,48 @@ class PostLikesView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class MyPostsView(APIView):
+    """Get posts authored by the authenticated user."""
+
+    permission_classes = [IsAuthenticated, IsNotBanned]
+
+    @swagger_auto_schema(
+        operation_description="Get posts created by the authenticated user",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=1),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=20)
+        ],
+        responses={200: PostSerializer(many=True)}
+    )
+    @rate_limit_general
+    def get(self, request):
+        """Get posts authored by the current user."""
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        try:
+            posts = PostService.get_user_posts(str(request.user.user_id), page, page_size)
+
+            data = [{
+                'post_id': str(post.post_id),
+                'author_id': str(post.user_id),
+                'author_username': post.user.username,
+                'subforum_id': str(post.subforum_id) if post.subforum_id else None,
+                'title': post.title,
+                'content': post.content[:200] + '...' if len(post.content) > 200 else post.content,
+                'like_count': post.like_count,
+                'comment_count': post.comment_count,
+                'created_at': post.created_at
+            } for post in posts]
+
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            return Response(
+                {'error': {'code': 'ERROR', 'message': str(exc)}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
 class FeedView(APIView):
     """Get personalized feed."""
 

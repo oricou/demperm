@@ -238,3 +238,8 @@ class PostService:
         """
         return PostRepository.get_discover(page, page_size)
 
+    @staticmethod
+    def get_user_posts(user_id: str, page: int = 1, page_size: int = 20) -> List[Post]:
+        """Get posts authored by a specific user (for their own profile)."""
+        return PostRepository.get_by_user(user_id, page, page_size)
+

@@ -97,7 +97,7 @@ class CommentService:
         
         Args:
             comment_id: Comment ID
-            user_id: User ID (must be comment owner or admin)
+            user_id: User ID (must be comment owner)
             ip_address: Client IP address
         """
         comment = CommentService.get_comment_by_id(comment_id)
