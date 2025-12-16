@@ -1,5 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
-import { getProfileSelf } from '../../../domains/social/api'
+import { useNavigate } from 'react-router-dom'
+import { apiClient } from '../../../domains/vote/api/apiClient'
+import { getCredentials, getUser, setUser } from '../../../shared/auth'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { PreferencesPanel } from '../../../components/composite/PreferencesPanel'
@@ -16,9 +18,29 @@ type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
 
+type ApiUserPayload = {
+  user_id: string
+  email: string
+  username: string
+  is_admin: boolean
+  is_banned: boolean
+  created_at: string
+  last_login_at: string | null
+  profile: {
+    display_name: string
+    profile_picture_url: string | null
+    bio: string | null
+    location: string | null
+    privacy: 'public' | 'private'
+  }
+  settings: {
+    email_notifications: boolean
+    language: string
+  }
+}
+
 /**
- * Page tableau de bord social (profil personnel mocké).
- * Charge le profil via le mock, permet de simuler édition et affichage.
+ * Page tableau de bord social (profil personnel connecté au backend).
  */
 export default function SocialDashboardPage() {
   const [preferences, setPreferences] = useState<Preference[]>([])
@@ -36,45 +58,66 @@ export default function SocialDashboardPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [isMembershipModalOpen, setMembershipModalOpen] = useState(false)
   const [newMembership, setNewMembership] = useState({ title: '', start: '', end: '' })
+  const navigate = useNavigate()
 
   useEffect(() => {
-    async function loadProfile() {
-      const data = await getProfileSelf('user-main')
-      setPreferences(buildPreferences(data.preferences))
-      setInfoItems(buildInfoItems(data.user))
-      setMemberships(
-        data.memberships.map((membership) => ({
-          id: membership.id,
-          title: membership.title,
-          start: membership.start_date,
-          end: membership.end_date
-        }))
-      )
-      setPosts(
-        data.posts.map((post) => ({
-          id: post.id,
-          title: post.titre,
-          excerpt: post.extrait,
-          createdAt: post.created_at,
-          comments: post.nb_commentaires,
-          hasAttachments: post.has_attachments
-        }))
-      )
-      setStats([
-        { label: 'Abonnés', value: data.stats.nb_abonnes.toString() },
-        { label: 'Abonnements', value: data.stats.nb_abonnements.toString() }
-      ])
-      setProfile({
-        fullName: `${data.user.first_name} ${data.user.last_name}`,
-        role: data.user.role,
-        location: data.user.zone_impliquee,
-        avatarUrl: data.user.avatar_url,
-        bio: data.user.bio
-      })
+    // Hydrater avec un éventuel payload backend déjà stocké
+    const stored = getUser<ApiUserPayload>()
+    if (stored && stored.profile) {
+      applyUserPayload(stored)
     }
 
-    loadProfile()
+    // Puis tenter de récupérer /users/me pour synchroniser avec le backend réel
+    async function loadUserFromBackend() {
+      const { token } = getCredentials()
+      if (!token) return
+
+      try {
+        const payload = await apiClient.get<ApiUserPayload>('/api/v1/users/me/')
+
+        if (payload === null) {
+          navigate('/profil/create', { replace: true })
+          return
+        }
+
+        setUser(payload)
+        applyUserPayload(payload)
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('Erreur lors du chargement de /users/me', error)
+      }
+    }
+
+    void loadUserFromBackend()
   }, [])
+
+  function applyUserPayload(payload: ApiUserPayload) {
+    const fullName = payload.profile.display_name || payload.username
+    const location = payload.profile.location || ''
+    const bio = payload.profile.bio || ''
+
+    setProfile((prev) => ({
+      ...prev,
+      fullName,
+      role: payload.is_admin ? 'Administrateur' : 'Citoyen',
+      location,
+      avatarUrl: payload.profile.profile_picture_url || prev.avatarUrl,
+      bio,
+    }))
+
+    setInfoItems([
+      { label: 'Prénom', value: fullName.split(' ')[0] ?? '' },
+      { label: 'Nom', value: fullName.split(' ').slice(1).join(' ') ?? '' },
+      { label: 'Pseudo', value: payload.username },
+      { label: 'Email', value: payload.email },
+      { label: 'Zone impliquée', value: location },
+      { label: 'Date de naissance', value: '' },
+    ])
+
+    setStats([
+      { label: 'Créé le', value: new Date(payload.created_at).toLocaleDateString() },
+    ])
+  }
 
   function handlePreferenceChange(id: string, value: string) {
     setPreferences((prev) => prev.map((pref) => (pref.id === id ? { ...pref, value } : pref)))
@@ -142,11 +185,11 @@ export default function SocialDashboardPage() {
         location={profile.location}
         avatarUrl={profile.avatarUrl}
         stats={stats}
-        editable
-        onEdit={toggleEditing}
-        editLabel={isEditing ? 'Valider les changements' : 'Mettre à jour le profil'}
+        editable={false}
+        onEdit={undefined}
+        editLabel={undefined}
         onPhotoChange={handleAvatarChange}
-        photoEditable={isEditing}
+        photoEditable={false}
       />
 
       <div className="grid gap-6 md:grid-cols-12">
@@ -275,59 +318,3 @@ function getInfoValue(items: ProfileInfoItem[], label: InfoField) {
   return items.find((item) => item.label === label)?.value ?? ''
 }
 
-/** Construit la liste de préférences à partir du payload API mocké. */
-function buildPreferences(preferences: { statut_compte: string; statut_vote: string; bloquer_les_voix: boolean }): Preference[] {
-  return [
-    {
-      id: 'pref-1',
-      label: 'Statut du compte',
-      value: preferences.statut_compte,
-      editable: true,
-      options: [
-        { label: 'Public', value: 'Public' },
-        { label: 'Privé', value: 'Privé' }
-      ]
-    },
-    {
-      id: 'pref-2',
-      label: 'Statut vote',
-      value: preferences.statut_vote,
-      editable: true,
-      options: [
-        { label: 'Public', value: 'Public' },
-        { label: 'Privé', value: 'Privé' }
-      ]
-    },
-    {
-      id: 'pref-3',
-      label: 'Bloquer les voix',
-      value: preferences.bloquer_les_voix ? 'Oui' : 'Non',
-      editable: true,
-      options: [
-        { label: 'Non', value: 'Non' },
-        { label: 'Oui', value: 'Oui' }
-      ]
-    },
-    { id: 'pref-4', label: 'Gérer mes communautés', value: 'Accès rapide', actionHref: '/forum' },
-    { id: 'pref-5', label: 'Gérer mes amitiés', value: 'Ouvert', actionHref: '/messages' }
-  ]
-}
-
-/** Construit les infos affichables (fiche info) depuis un user mock. */
-function buildInfoItems(user: {
-  first_name: string
-  last_name: string
-  pseudo: string
-  birth_date: string
-  email: string
-  zone_impliquee: string
-}): ProfileInfoItem[] {
-  return [
-    { label: 'Prénom', value: user.first_name },
-    { label: 'Nom', value: user.last_name },
-    { label: 'Pseudo', value: user.pseudo },
-    { label: 'Date de naissance', value: user.birth_date },
-    { label: 'Email', value: user.email },
-    { label: 'Zone impliquée', value: user.zone_impliquee }
-  ]
-}

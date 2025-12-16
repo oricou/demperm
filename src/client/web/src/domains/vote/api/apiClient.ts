@@ -3,20 +3,23 @@
  */
 
 import type { ApiError } from '../models'
+import { getCredentials } from '../../../shared/auth'
 
 export class ApiClient {
   private baseUrl: string
   
   constructor() {
-    // Use empty string for MSW mock, or actual API URL for production
-    this.baseUrl = import.meta.env.VITE_API_URL || ''
+    // Use API URL from env if provided, otherwise default to local backend
+    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
   }
   
   /**
    * Get authentication token from localStorage
    */
   private getToken(): string | null {
-    return localStorage.getItem('token')
+    if (typeof window === 'undefined') return null
+    const { token } = getCredentials()
+    return token ?? null
   }
   
   /**

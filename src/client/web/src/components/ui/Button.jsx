@@ -20,7 +20,7 @@ const sizeClasses = {
 export function Button({
   variant = 'primary',
   size = 'md',
-  icon,
+  icon = null,
   className,
   children,
   ...props

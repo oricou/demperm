@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getPublicProfile } from '../../../domains/social/api'
+import { apiClient } from '../../../domains/vote/api/apiClient'
+import { getUser } from '../../../shared/auth'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { InfoCard } from '../../../components/composite/InfoCard'
@@ -13,6 +14,34 @@ type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
 type VoteCategory = { id: string; label: string }
+
+type FollowUser = {
+  user_id: string
+  username: string
+  display_name: string | null
+  profile_picture_url: string | null
+}
+
+type ApiUserPayload = {
+  user_id: string
+  email: string
+  username: string
+  is_admin: boolean
+  is_banned: boolean
+  created_at: string
+  last_login_at: string | null
+  profile: {
+    display_name: string
+    profile_picture_url: string | null
+    bio: string | null
+    location: string | null
+    privacy: 'public' | 'private'
+  }
+  settings: {
+    email_notifications: boolean
+    language: string
+  }
+}
 
 /**
  * Page profil public : lit l'identifiant cible via la query (?userId=) et affiche les données mockées.
@@ -29,6 +58,8 @@ export default function PublicProfilePage() {
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
+  const [followers, setFollowers] = useState<FollowUser[]>([])
+  const [following, setFollowing] = useState<FollowUser[]>([])
   const [searchParams] = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const navigate = useNavigate()
@@ -48,49 +79,42 @@ export default function PublicProfilePage() {
     []
   )
 
-  const targetUserId = useMemo(() => searchParams.get('userId') ?? 'user-main', [searchParams])
-  const isSelf = targetUserId === 'user-main'
+  const userIdParam = searchParams.get('userId')
+  const targetUserId = useMemo(() => userIdParam ?? 'user-main', [userIdParam])
+  const [isSelf, setIsSelf] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
-      const data = await getPublicProfile(targetUserId)
-      setProfile({
-        fullName: `${data.user.first_name} ${data.user.last_name}`,
-        role: data.user.role,
-        location: data.user.zone_impliquee,
-        avatarUrl: data.user.avatar_url,
-        bio: data.user.bio
-      })
-      setStats([
-        { label: 'Abonnés', value: data.stats.nb_abonnes.toString() },
-        { label: 'Abonnements', value: data.stats.nb_abonnements.toString() }
-      ])
-      setMemberships(
-        data.memberships.map((membership) => ({
-          id: membership.id,
-          title: membership.title,
-          start: membership.start_date,
-          end: membership.end_date
-        }))
-      )
-      setInfoItems([
-        { label: 'Prénom', value: data.public_info.first_name },
-        { label: 'Nom', value: data.public_info.last_name },
-        { label: 'Pseudo', value: data.public_info.pseudo }
-      ])
-      setPosts(
-        data.posts.map((post) => ({
-          id: post.id,
-          title: post.titre,
-          excerpt: post.extrait,
-          createdAt: post.created_at,
-          comments: post.nb_commentaires,
-          hasAttachments: post.has_attachments
-        }))
-      )
+      const stored = getUser<ApiUserPayload>()
+      const selfUserId = stored?.user_id ?? null
+      const viewingSelf = !userIdParam || targetUserId === 'user-main' || (selfUserId && targetUserId === selfUserId)
+
+      setIsSelf(viewingSelf)
+
+      if (viewingSelf && stored && stored.profile) {
+        applyUserPayloadPublic(stored)
+      }
+
+      if (viewingSelf && stored) {
+        try {
+          const [allFollowers, allFollowing] = await Promise.all([
+            fetchAllFollows('/api/v1/following/me/followers/'),
+            fetchAllFollows('/api/v1/following/me/following/'),
+          ])
+          setFollowers(allFollowers)
+          setFollowing(allFollowing)
+          setStats([
+            { label: 'Abonnés', value: allFollowers.length.toString() },
+            { label: 'Abonnements', value: allFollowing.length.toString() },
+          ])
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn('Erreur lors du chargement des followers/following', error)
+        }
+      }
     }
     loadProfile()
-  }, [targetUserId])
+  }, [targetUserId, userIdParam])
 
   useEffect(() => {
     if (voteCategories.length > 0) {
@@ -109,6 +133,30 @@ export default function PublicProfilePage() {
     navigate('/messages')
   }
 
+  function applyUserPayloadPublic(payload: ApiUserPayload) {
+    const fullName = payload.profile.display_name || payload.username
+    const location = payload.profile.location || ''
+    const bio = payload.profile.bio || ''
+
+    setProfile((prev) => ({
+      ...prev,
+      fullName,
+      role: payload.is_admin ? 'Administrateur' : 'Citoyen',
+      location,
+      avatarUrl: payload.profile.profile_picture_url || prev.avatarUrl,
+      bio,
+    }))
+
+    const firstName = fullName.split(' ')[0] ?? ''
+    const lastName = fullName.split(' ').slice(1).join(' ') ?? ''
+
+    setInfoItems([
+      { label: 'Prénom', value: firstName },
+      { label: 'Nom', value: lastName },
+      { label: 'Pseudo', value: payload.username },
+    ])
+  }
+
   return (
     <div className="space-y-6">
       <ProfileHeader
@@ -117,6 +165,11 @@ export default function PublicProfilePage() {
         location={profile.location}
         avatarUrl={profile.avatarUrl}
         stats={stats}
+        editable={false}
+        onEdit={undefined}
+        editLabel={undefined}
+        onPhotoChange={() => { /* backend upload to wire later */ }}
+        photoEditable={false}
       />
 
       <div className="grid gap-6 md:grid-cols-12">
@@ -178,6 +231,47 @@ export default function PublicProfilePage() {
 
         <div className="space-y-6 md:col-span-3">
           <InfoCard title="Infos publiques" items={infoItems} />
+          {isSelf && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Abonnés</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {followers.length === 0 ? (
+                    <EmptyCard />
+                  ) : (
+                    <ul className="space-y-2 text-sm">
+                      {followers.map((user) => (
+                        <li key={user.user_id} className="flex items-center justify-between">
+                          <span className="font-medium text-foreground">{user.display_name || user.username}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Abonnements</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {following.length === 0 ? (
+                    <EmptyCard />
+                  ) : (
+                    <ul className="space-y-2 text-sm">
+                      {following.map((user) => (
+                        <li key={user.user_id} className="flex items-center justify-between">
+                          <span className="font-medium text-foreground">{user.display_name || user.username}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
           {!isSelf && (
             <Card>
               <CardHeader>
@@ -211,6 +305,32 @@ export default function PublicProfilePage() {
       </div>
     </div>
   )
+}
+
+async function fetchAllFollows(endpointBase: string, pageSize: number = 20): Promise<FollowUser[]> {
+  const all: FollowUser[] = []
+  let page = 1
+
+  const maxPages = 100
+
+  while (page <= maxPages) {
+    const query = apiClient.buildQueryString({ page, page_size: pageSize })
+    const data = await apiClient.get<FollowUser[]>(`${endpointBase}${query}`)
+
+    if (!Array.isArray(data) || data.length === 0) {
+      break
+    }
+
+    all.push(...data)
+
+    if (data.length < pageSize) {
+      break
+    }
+
+    page += 1
+  }
+
+  return all
 }
 
 function EmptyCard() {
