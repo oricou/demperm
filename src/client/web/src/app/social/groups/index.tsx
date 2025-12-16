@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getForumHome } from '../../../domains/social/api'
+import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
+import { clearCredentials } from '../../../shared/auth'
 import { Input } from '../../../components/ui/Input'
 import { SidebarList } from '../../../components/composite/SidebarList'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card'
@@ -8,171 +9,301 @@ import { Button } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Modal } from '../../../components/ui/Modal'
 
-type SidebarItem = { id: string; title: string; subtitle?: string; meta?: string }
-type PostPreview = {
+type ForumSummary = {
+  id: string
+  name: string
+  description: string
+  memberCount: number
+  postCount: number
+  createdAt: string
+}
+
+type SubforumSummary = {
+  id: string
+  name: string
+  description: string
+  postCount: number
+  createdAt: string
+}
+
+type PostSummary = {
   id: string
   title: string
-  excerpt: string
-  communityId: string
-  hasImage?: boolean
-  author: string
+  likeCount: number
+  commentCount: number
   createdAt: string
-  votes: number
-  comments: number
 }
-type CommentPreview = { id: string; author: string; message: string; time: string }
+
+type PostDetail = {
+  id: string
+  title: string
+  content: string
+  authorUsername: string
+  createdAt: string
+  likeCount: number
+  commentCount: number
+}
+
+type SidebarItem = { id: string; title: string; subtitle?: string; meta?: string }
+
+type ApiForum = {
+  forum_id: string
+  name: string
+  description: string
+  creator_id?: string | null
+  member_count: number
+  post_count: number
+  created_at: string
+  joined_at?: string
+}
+
+type ApiSubforum = {
+  subforum_id: string
+  name: string
+  description: string
+  parent_forum_id: string | null
+  post_count: number
+  created_at: string
+}
+
+type ApiPostSummary = {
+  post_id: string
+  user_id: string
+  title: string
+  like_count: number
+  comment_count: number
+  created_at: string
+}
+
+type ApiPostDetail = {
+  post_id: string
+  author_id: string
+  author_username: string
+  subforum_id: string
+  title: string
+  content: string
+  content_signature: string
+  like_count: number
+  comment_count: number
+  created_at: string
+  updated_at: string
+}
 
 /**
- * Page forum mockée : affiche flux général, filtres par communauté/tendance et navigation vers profils publics.
+ * Page forums connectée au backend social :
+ * - Colonne de gauche : navigation + "Mes forums" (forums où l'utilisateur est membre)
+ * - Colonne centrale : sous-forums du forum sélectionné + posts du sous-forum actif
+ * - Colonne de droite : forums tendances (triés par nombre de posts)
  */
 export default function ForumHomePage() {
   const [search, setSearch] = useState('')
-  const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null)
-  const [communities, setCommunities] = useState<SidebarItem[]>([])
-  const [trending, setTrending] = useState<SidebarItem[]>([])
-  const [isEditCommunities, setEditCommunities] = useState(false)
-  const [posts, setPosts] = useState<PostPreview[]>([])
-  const [commentsByPost, setCommentsByPost] = useState<Record<string, CommentPreview[]>>({})
+  const [myForums, setMyForums] = useState<ForumSummary[]>([])
+  const [trendingForums, setTrendingForums] = useState<ForumSummary[]>([])
+  const [activeForumId, setActiveForumId] = useState<string | null>(null)
+  const [subforums, setSubforums] = useState<SubforumSummary[]>([])
+  const [activeSubforumId, setActiveSubforumId] = useState<string | null>(null)
+  const [posts, setPosts] = useState<PostSummary[]>([])
   const [activePostId, setActivePostId] = useState<string | null>(null)
+  const [selectedPost, setSelectedPost] = useState<PostDetail | null>(null)
+  const [isDetailView, setIsDetailView] = useState(false)
   const [isCreatePostModalOpen, setCreatePostModalOpen] = useState(false)
-  const [isAddCommunityModalOpen, setAddCommunityModalOpen] = useState(false)
-  const [isDetailView, setDetailView] = useState(false)
-  const [newComment, setNewComment] = useState('')
+  const [isCreateForumModalOpen, setCreateForumModalOpen] = useState(false)
+  const [isCreateSubforumModalOpen, setCreateSubforumModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    async function loadForum() {
-      const data = await getForumHome('user-main')
-      setCommunities(
-        data.communities.map((community) => ({
-          id: community.id,
-          title: community.title,
-          subtitle: community.subtitle,
-          meta: community.meta
-        }))
-      )
-      setTrending(
-        data.trending.map((community) => ({
-          id: community.id,
-          title: community.title,
-          subtitle: community.subtitle,
-          meta: community.meta
-        }))
-      )
-      setPosts(
-        data.posts.map((post) => ({
-          id: post.id,
-          title: post.title,
-          excerpt: post.excerpt,
-          communityId: post.community_id,
-          hasImage: post.has_image,
-          author: post.author,
-          createdAt: post.created_at,
-          votes: post.stats.nb_votes,
-          comments: post.stats.nb_commentaires
-        }))
-      )
-      setCommentsByPost(data.comments_by_post)
-      setActiveCommunityId(null)
-      setActivePostId(null)
-      setDetailView(false)
-    }
-
-    loadForum()
+    void loadInitialData()
   }, [])
 
-  const activeCommunityName = useMemo(() => {
-    return communities.find((item) => item.id === activeCommunityId)?.title ?? null
-  }, [communities, activeCommunityId])
+  async function loadInitialData() {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
 
-  /** Retourne le libellé d'une communauté à partir de son id. */
-  function communityNameLookup(id: string, communitiesList: SidebarItem[]) {
-    return communitiesList.find((c) => c.id === id)?.title ?? id
+      const [myForumsResponse, allForumsResponse] = await Promise.all([
+        apiClient.get<ApiForum[]>(`/api/v1/forums/me/${query}`),
+        apiClient.get<ApiForum[]>(`/api/v1/forums/${query}`),
+      ])
+
+      const my = myForumsResponse.map(mapForum)
+      const all = allForumsResponse.map(mapForum)
+
+      setMyForums(my)
+
+      const trending = [...all]
+        .sort((a, b) => {
+          if (b.postCount !== a.postCount) return b.postCount - a.postCount
+          return b.memberCount - a.memberCount
+        })
+        .slice(0, 10)
+      setTrendingForums(trending)
+
+      const initialForumId = (my[0] ?? trending[0])?.id ?? null
+      if (initialForumId) {
+        await loadForum(initialForumId)
+      }
+    } catch (err) {
+      handleHttpError(err, "Erreur lors du chargement des forums")
+    } finally {
+      setIsLoading(false)
+    }
   }
+
+  async function loadForum(forumId: string) {
+    setActiveForumId(forumId)
+    setSubforums([])
+    setActiveSubforumId(null)
+    setPosts([])
+    setActivePostId(null)
+    setSelectedPost(null)
+    setIsDetailView(false)
+
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
+      const data = await apiClient.get<ApiSubforum[]>(`/api/v1/forums/${forumId}/subforums/${query}`)
+
+      const mapped = data.map((s) => ({
+        id: s.subforum_id,
+        name: s.name,
+        description: s.description,
+        postCount: s.post_count,
+        createdAt: s.created_at,
+      }))
+
+      setSubforums(mapped)
+
+      if (mapped.length > 0) {
+        await loadSubforum(mapped[0].id)
+      }
+    } catch (err) {
+      handleHttpError(err, "Erreur lors du chargement des sous-forums")
+    }
+  }
+
+  async function loadSubforum(subforumId: string) {
+    setActiveSubforumId(subforumId)
+    setPosts([])
+    setActivePostId(null)
+    setSelectedPost(null)
+    setIsDetailView(false)
+
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
+      const data = await apiClient.get<ApiPostSummary[]>(`/api/v1/subforums/${subforumId}/posts/${query}`)
+
+      const mapped = data.map((post) => ({
+        id: post.post_id,
+        title: post.title,
+        likeCount: post.like_count,
+        commentCount: post.comment_count,
+        createdAt: post.created_at,
+      }))
+
+      setPosts(mapped)
+    } catch (err) {
+      handleHttpError(err, "Erreur lors du chargement des posts")
+    }
+  }
+
+  async function handleSelectPost(postId: string) {
+    setActivePostId(postId)
+    setIsDetailView(true)
+    setSelectedPost(null)
+
+    try {
+      const data = await apiClient.get<ApiPostDetail>(`/api/v1/posts/${postId}/`)
+
+      const detail: PostDetail = {
+        id: data.post_id,
+        title: data.title,
+        content: data.content,
+        authorUsername: data.author_username,
+        createdAt: data.created_at,
+        likeCount: data.like_count,
+        commentCount: data.comment_count,
+      }
+
+      setSelectedPost(detail)
+    } catch (err) {
+      handleHttpError(err, "Erreur lors du chargement du post")
+      setIsDetailView(false)
+    }
+  }
+
+  function handleBackToFeed() {
+    setIsDetailView(false)
+  }
+
+  function handleSelectForum(id: string) {
+    void loadForum(id)
+  }
+
+  function handleSelectSubforum(id: string) {
+    void loadSubforum(id)
+  }
+
+  function handleSelectHome() {
+    setActiveForumId(null)
+    setSubforums([])
+    setActiveSubforumId(null)
+    setPosts([])
+    setActivePostId(null)
+    setSelectedPost(null)
+    setIsDetailView(false)
+  }
+
+  function handleHttpError(err: unknown, defaultMessage: string) {
+    if (err instanceof ApiHttpError && err.status === 403) {
+      clearCredentials()
+      navigate('/login', { replace: true })
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.warn(defaultMessage, err)
+    setError(defaultMessage)
+  }
+
+  const activeForumName = useMemo(() => {
+    const all = [...myForums, ...trendingForums]
+    const forum = all.find((f) => f.id === activeForumId)
+    return forum?.name ?? null
+  }, [myForums, trendingForums, activeForumId])
+
+  const activeSubforumName = useMemo(() => {
+    const sub = subforums.find((s) => s.id === activeSubforumId)
+    return sub?.name ?? null
+  }, [subforums, activeSubforumId])
+
+  const myForumItems: SidebarItem[] = useMemo(
+    () =>
+      myForums.map((forum) => ({
+        id: forum.id,
+        title: forum.name,
+        subtitle: forum.description,
+        meta: `${forum.memberCount} membres • ${forum.postCount} posts`,
+      })),
+    [myForums]
+  )
+
+  const trendingItems: SidebarItem[] = useMemo(
+    () =>
+      trendingForums.map((forum) => ({
+        id: forum.id,
+        title: forum.name,
+        subtitle: forum.description,
+        meta: `${forum.memberCount} membres • ${forum.postCount} posts`,
+      })),
+    [trendingForums]
+  )
 
   const filteredPosts = useMemo(() => {
-    const scoped = activeCommunityId ? posts.filter((post) => post.communityId === activeCommunityId) : posts
-    if (!search.trim()) return scoped
+    if (!search.trim()) return posts
     const query = search.toLowerCase()
-    return scoped.filter((post) => post.title.toLowerCase().includes(query) || post.excerpt.toLowerCase().includes(query))
-  }, [posts, activeCommunityId, search])
-
-  const activePost = useMemo(() => {
-    if (!activePostId) return null
-    return filteredPosts.find((post) => post.id === activePostId) ?? null
-  }, [filteredPosts, activePostId])
-
-  const comments = useMemo(() => {
-    if (!activePost) return []
-    return commentsByPost[activePost.id] ?? []
-  }, [activePost, commentsByPost])
-
-  /** Sélectionne un post et affiche la vue détail. */
-  function handleSelectPost(id: string) {
-    setActivePostId(id)
-    setDetailView(true)
-  }
-
-  /** Navigue vers le profil public de l'auteur (mock). */
-  function handleNavigateToUser(userId: string) {
-    const targetId = resolveUserId(userId)
-    navigate(`/profil/public?userId=${encodeURIComponent(targetId)}`)
-  }
-
-  /** Sélectionne une communauté et filtre le flux. */
-  function handleNavigateToCommunity(communityId: string) {
-    setActiveCommunityId(communityId)
-    setActivePostId(null)
-    setDetailView(false)
-  }
-
-  /** Réinitialise le flux sur l'accueil (toutes communautés). */
-  function handleSelectHome() {
-    setActiveCommunityId(null)
-    setActivePostId(null)
-    setDetailView(false)
-  }
-
-  /** Ferme la vue détail et revient au flux. */
-  function handleBackToFeed() {
-    setDetailView(false)
-  }
-
-  /** Sélectionne une communauté (sidebar/tendances) et positionne le premier post disponible. */
-  function handleSelectCommunity(id: string) {
-    setActiveCommunityId(id)
-    const nextPost = posts.find((post) => post.communityId === id)
-    setActivePostId(nextPost?.id ?? null)
-    setDetailView(false)
-  }
-
-  /** Ajoute un commentaire localement sur le post actif (mock). */
-  function handleAddComment() {
-    if (!activePost || !newComment.trim()) return
-    const postId = activePost.id
-    const next: CommentPreview = {
-      id: `c-${Date.now()}`,
-      author: 'jmartin',
-      message: newComment.trim(),
-      time: "à l'instant"
-    }
-    setCommentsByPost((prev) => ({
-      ...prev,
-      [postId]: [...(prev[postId] ?? []), next]
-    }))
-    setNewComment('')
-  }
-
-  /** Mappe un pseudo (u/...) vers l'id utilisateur utilisé par les mocks. */
-  function resolveUserId(author: string) {
-    const value = author.toLowerCase()
-    if (value.includes('jmartin')) return 'user-main'
-    if (value.includes('thibault')) return 'user-thibault'
-    if (value.includes('amina')) return 'user-amina'
-    if (value.includes('louis')) return 'user-louis'
-    if (value.includes('clara')) return 'user-clara'
-    return author
-  }
+    return posts.filter((post) => post.title.toLowerCase().includes(query))
+  }, [posts, search])
 
   return (
     <>
@@ -183,11 +314,23 @@ export default function ForumHomePage() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Rechercher une communauté ou un post"
+              placeholder="Rechercher un forum ou un post"
               className="w-full rounded-full border border-primary/30 bg-white px-5 py-3 text-center shadow shadow-primary/10 focus:border-primary"
             />
           </div>
-          <Button variant="primary" className="rounded-full px-5 py-3" onClick={() => setCreatePostModalOpen(true)}>
+          <Button
+            variant="outline"
+            className="rounded-full px-5 py-3"
+            onClick={() => setCreateForumModalOpen(true)}
+          >
+            Créer un forum
+          </Button>
+          <Button
+            variant="primary"
+            className="rounded-full px-5 py-3"
+            onClick={() => setCreatePostModalOpen(true)}
+            disabled={!activeSubforumId}
+          >
             Créer un post
           </Button>
         </div>
@@ -202,49 +345,43 @@ export default function ForumHomePage() {
                 <Button variant="ghost" className="justify-start" onClick={handleSelectHome}>
                   Accueil
                 </Button>
-                <Button variant="ghost" className="justify-start">
-                  Explorer
-                </Button>
               </CardContent>
             </Card>
 
             <Card className="max-h-[60vh] overflow-y-auto pr-1">
               <CardHeader className="flex items-center justify-between">
-                <CardTitle>Mes communautés</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="primary" size="sm" onClick={() => setAddCommunityModalOpen(true)}>
-                    Ajouter
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setEditCommunities((prev) => !prev)}>
-                    {isEditCommunities ? 'Terminer' : 'Modifier'}
-                  </Button>
-                </div>
+                <CardTitle>Mes forums</CardTitle>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setCreateSubforumModalOpen(true)}
+                  disabled={!activeForumId}
+                >
+                  Nouveau sous-forum
+                </Button>
               </CardHeader>
               <CardContent className="space-y-2">
-                {communities.length === 0 ? (
+                {isLoading ? (
+                  <p className="text-sm text-muted">Chargement…</p>
+                ) : myForumItems.length === 0 ? (
                   <EmptyState
-                    title="Aucune communauté"
-                    description="Dès que l'API renverra des communautés, elles apparaîtront ici."
+                    title="Aucun forum"
+                    description="Rejoins ou crée un forum pour commencer à échanger."
                   />
                 ) : (
                   <ul className="space-y-2">
-                    {communities.map((community) => (
+                    {myForumItems.map((forum) => (
                       <li
-                        key={community.id}
+                        key={forum.id}
                         className="group flex items-center justify-between rounded-2xl border border-border px-3 py-2 text-sm transition hover:-translate-y-0.5 hover:border-primary/40"
                       >
                         <button
                           type="button"
                           className="flex-1 text-left font-semibold text-foreground hover:text-primary"
-                          onClick={() => handleSelectCommunity(community.id)}
+                          onClick={() => handleSelectForum(forum.id)}
                         >
-                          {community.title}
+                          {forum.title}
                         </button>
-                        {isEditCommunities && (
-                          <Button variant="ghost" size="sm" className="text-danger">
-                            Supprimer
-                          </Button>
-                        )}
                       </li>
                     ))}
                   </ul>
@@ -254,178 +391,116 @@ export default function ForumHomePage() {
           </aside>
 
           <section className="max-h-[70vh] space-y-3 overflow-y-auto pr-2">
-            {isDetailView && activePost ? (
-              <Card className="border border-border bg-white/90 shadow-sm">
-                <CardHeader className="space-y-4 px-5 pt-5">
-                  <div className="flex items-center justify-between">
-                    <Button variant="ghost" size="sm" onClick={handleBackToFeed}>
-                      ← Retour au flux
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
-                        <button
-                          type="button"
-                          className="font-semibold text-primary hover:underline"
-                          onClick={() => handleNavigateToUser(activePost.author)}
-                        >
-                          u/{activePost.author}
-                        </button>
-                        <span>•</span>
-                        <span>{activePost.createdAt}</span>
-                        <span>•</span>
-                        <button
-                          type="button"
-                          className="font-semibold text-primary hover:underline"
-                          onClick={() => handleNavigateToCommunity(activePost.communityId)}
-                        >
-                          r/{activeCommunityName ?? activePost.communityId}
-                        </button>
-                      </div>
-                    <h2 className="text-3xl font-semibold text-foreground">{activePost.title}</h2>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {activePost.hasImage && (
-                    <div className="flex justify-center">
-                      <div className="h-72 w-full max-w-3xl rounded-3xl bg-gradient-to-br from-primary/30 via-primary/5 to-background-soft shadow-inner" />
-                    </div>
-                  )}
-                  <p className="text-base text-muted">{activePost.excerpt} {activePost.excerpt}</p>
-                  <div className="space-y-3 rounded-2xl border border-border bg-background-soft p-4">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Commentaires</h3>
-                    {comments.length === 0 ? (
-                      <p className="text-sm text-muted">Aucun commentaire pour le moment.</p>
-                    ) : (
-                      comments.map((comment) => (
-                        <div key={comment.id} className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                          <p className="text-xs uppercase tracking-wide text-muted">
-                            {comment.author} • {comment.time}
-                          </p>
-                          <p className="text-sm text-foreground">{comment.message}</p>
-                        </div>
-                      ))
-                    )}
-                    <div className="space-y-2 pt-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted" htmlFor="new-comment">
-                        Ajouter un commentaire
-                      </label>
-                      <textarea
-                        id="new-comment"
-                        value={newComment}
-                        onChange={(event) => setNewComment(event.target.value)}
-                        placeholder="Partager une réaction..."
-                        className="min-h-[80px] w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      />
-                      <div className="flex justify-end">
-                        <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim()}>
-                          Publier
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <Card className="border border-border bg-white/80 shadow-sm">
-                  <CardHeader className="space-y-3 px-5 pt-5">
-                    <header className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
-                      <p>{activeCommunityName ? `r/${activeCommunityName}` : 'Flux général'}</p>
-                      <p>{activePost ? 'Post sélectionné' : 'Aucun post sélectionné'}</p>
-                    </header>
-                    {activePost ? (
-                      <div className="space-y-2">
-                        <h2 className="text-2xl font-semibold text-foreground">{activePost.title}</h2>
-                        {activePost.hasImage ? (
-                          <div className="flex justify-center">
-                            <div className="h-60 w-full max-w-2xl rounded-3xl bg-gradient-to-br from-primary/30 via-primary/5 to-background-soft shadow-inner" />
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted">{activePost.excerpt}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted">
-                        Sélectionne un post pour l’afficher ici ou patiente pendant l’intégration des données.
-                      </p>
-                    )}
-                  </CardHeader>
-                </Card>
+            <Card className="border border-border bg-white/80 shadow-sm">
+              <CardHeader className="space-y-3 px-5 pt-5">
+                <header className="flex flex-col gap-1 text-xs uppercase tracking-wide text-muted md:flex-row md:items-center md:justify-between">
+                  <p>
+                    {activeForumName ? `r/${activeForumName}` : 'Flux général des forums'}
+                    {activeSubforumName ? ` • ${activeSubforumName}` : ''}
+                  </p>
+                  <p>{activePostId ? 'Post sélectionné' : 'Aucun post sélectionné'}</p>
+                </header>
 
-                {filteredPosts.length === 0 ? (
-                  <EmptyState
-                    title="Aucun post disponible"
-                    description={
-                      activeCommunityId
-                        ? "Cette communauté n'a pas encore publié. Reviens plus tard ou choisis-en une autre."
-                        : 'Le flux sera alimenté automatiquement lorsque les posts seront branchés.'
-                    }
-                  />
-                ) : (
-                  <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
-                    {filteredPosts.map((post, index) => (
-                      <button
-                        key={post.id}
+                {subforums.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {subforums.map((subforum) => (
+                      <Button
+                        key={subforum.id}
                         type="button"
-                        onClick={() => handleSelectPost(post.id)}
-                        className={`w-full px-0 text-left transition hover:bg-background-soft ${
-                          index !== filteredPosts.length - 1 ? 'border-b border-border/70' : ''
-                        }`}
+                        size="sm"
+                        variant={subforum.id === activeSubforumId ? 'primary' : 'outline'}
+                        onClick={() => handleSelectSubforum(subforum.id)}
                       >
-                        <article className="relative flex gap-4 px-6 py-5">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-muted">
-                              <button
-                                type="button"
-                                className="font-semibold text-primary hover:underline"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  handleNavigateToUser(post.author)
-                                }}
-                              >
-                                u/{post.author}
-                              </button>
-                              <span>•</span>
-                              <span>{post.createdAt}</span>
-                              <span>•</span>
-                              <button
-                                type="button"
-                                className="font-semibold text-primary hover:underline"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  handleNavigateToCommunity(post.communityId)
-                                }}
-                              >
-                                r/{communityNameLookup(post.communityId, communities)}
-                              </button>
-                            </div>
-                            <h3 className="text-base font-semibold text-foreground">{post.title}</h3>
-                            <p className="text-sm text-muted">
-                              {post.hasImage ? 'Contenu avec aperçu visuel' : post.excerpt}
-                            </p>
-                          </div>
-                          <div className="flex flex-shrink-0 items-center justify-center">
-                            <div
-                              className={`${post.hasImage ? 'h-32 w-32' : 'h-24 w-24'} rounded-2xl bg-gradient-to-br from-primary/20 via-primary/5 to-background-soft`}
-                            />
-                          </div>
-                        </article>
-                      </button>
+                        {subforum.name}
+                      </Button>
                     ))}
                   </div>
                 )}
-              </>
+
+                {isDetailView && selectedPost ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Button variant="ghost" size="sm" onClick={handleBackToFeed}>
+                        ← Retour au flux
+                      </Button>
+                    </div>
+                    <div className="space-y-1 text-xs uppercase tracking-wide text-muted">
+                      <p>
+                        u/{selectedPost.authorUsername} •{' '}
+                        {new Date(selectedPost.createdAt).toLocaleString('fr-FR')}
+                      </p>
+                    </div>
+                    <h2 className="text-2xl font-semibold text-foreground">{selectedPost.title}</h2>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">
+                    Sélectionne un sous-forum puis un post pour l’afficher, ou utilise la barre de recherche.
+                  </p>
+                )}
+              </CardHeader>
+              {isDetailView && selectedPost && (
+                <CardContent className="space-y-4 px-5 pb-5">
+                  <p className="whitespace-pre-wrap text-sm text-foreground">{selectedPost.content}</p>
+                  <p className="text-xs text-muted">
+                    👍 {selectedPost.likeCount} • 💬 {selectedPost.commentCount}
+                  </p>
+                </CardContent>
+              )}
+            </Card>
+
+            {error && (
+              <Card>
+                <CardContent>
+                  <p className="text-sm text-danger">{error}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {filteredPosts.length === 0 ? (
+              <EmptyState
+                title="Aucun post disponible"
+                description={
+                  activeSubforumId
+                    ? "Ce sous-forum n'a pas encore de posts. Crée le premier !"
+                    : 'Choisis un forum et un sous-forum pour voir les posts associés.'
+                }
+              />
+            ) : (
+              <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
+                {filteredPosts.map((post, index) => (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => handleSelectPost(post.id)}
+                    className={`w-full px-0 text-left transition hover:bg-background-soft ${
+                      index !== filteredPosts.length - 1 ? 'border-b border-border/70' : ''
+                    }`}
+                  >
+                    <article className="relative flex gap-4 px-6 py-5">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-muted">
+                          <span>{new Date(post.createdAt).toLocaleString('fr-FR')}</span>
+                          <span>•</span>
+                          <span>👍 {post.likeCount}</span>
+                          <span>•</span>
+                          <span>💬 {post.commentCount}</span>
+                        </div>
+                        <h3 className="text-base font-semibold text-foreground">{post.title}</h3>
+                      </div>
+                    </article>
+                  </button>
+                ))}
+              </div>
             )}
           </section>
 
           <aside className="space-y-4">
-            {trending.length > 0 ? (
+            {trendingItems.length > 0 ? (
               <SidebarList
                 title="Tendances"
-                items={trending}
-                activeId={activeCommunityId ?? undefined}
-                onSelect={(id) => handleSelectCommunity(id)}
+                items={trendingItems}
+                activeId={activeForumId ?? undefined}
+                onSelect={(id) => handleSelectForum(id)}
               />
             ) : (
               <Card>
@@ -435,7 +510,7 @@ export default function ForumHomePage() {
                 <CardContent>
                   <EmptyState
                     title="Aucune tendance"
-                    description="Les communautés populaires seront listées ici dès que disponibles."
+                    description="Les forums populaires seront listés ici dès que disponibles."
                   />
                 </CardContent>
               </Card>
@@ -447,28 +522,110 @@ export default function ForumHomePage() {
       <CreatePostModal
         open={isCreatePostModalOpen}
         onClose={() => setCreatePostModalOpen(false)}
-        communities={communities}
-        activeCommunityId={activeCommunityId}
+        activeForumName={activeForumName}
+        activeSubforumId={activeSubforumId}
+        activeSubforumName={activeSubforumName}
+        onPostCreated={() => {
+          if (activeSubforumId) {
+            void loadSubforum(activeSubforumId)
+          }
+        }}
       />
 
-      <AddCommunityModal open={isAddCommunityModalOpen} onClose={() => setAddCommunityModalOpen(false)} />
+      <CreateForumModal
+        open={isCreateForumModalOpen}
+        onClose={() => setCreateForumModalOpen(false)}
+        onForumCreated={() => void loadInitialData()}
+      />
+
+      <CreateSubforumModal
+        open={isCreateSubforumModalOpen}
+        onClose={() => setCreateSubforumModalOpen(false)}
+        activeForumName={activeForumName}
+        activeForumId={activeForumId}
+        onSubforumCreated={() => {
+          if (activeForumId) {
+            void loadForum(activeForumId)
+          }
+        }}
+      />
     </>
   )
+}
+
+function mapForum(forum: ApiForum): ForumSummary {
+  return {
+    id: forum.forum_id,
+    name: forum.name,
+    description: forum.description,
+    memberCount: forum.member_count,
+    postCount: forum.post_count,
+    createdAt: forum.created_at,
+  }
+}
+
+type CreatePostModalProps = {
+  open: boolean
+  onClose: () => void
+  activeForumName: string | null
+  activeSubforumId: string | null
+  activeSubforumName: string | null
+  onPostCreated?: () => void
 }
 
 function CreatePostModal({
   open,
   onClose,
-  communities,
-  activeCommunityId
-}: {
-  open: boolean
-  onClose: () => void
-  communities: SidebarItem[]
-  activeCommunityId: string | null
-}) {
-  const hasCommunities = communities.length > 0
-  const defaultCommunity = activeCommunityId ?? communities[0]?.id ?? ''
+  activeForumName,
+  activeSubforumId,
+  activeSubforumName,
+  onPostCreated,
+}: CreatePostModalProps) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!activeSubforumId) {
+      setError("Sélectionne d'abord un forum et un sous-forum.")
+      return
+    }
+
+    if (!title.trim() || !content.trim()) {
+      setError('Le titre et le contenu sont obligatoires.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await apiClient.post('/api/v1/posts/create/', {
+        title: title.trim(),
+        content: content.trim(),
+        subforum_id: activeSubforumId,
+      })
+
+      setTitle('')
+      setContent('')
+      onClose()
+      onPostCreated?.()
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.status === 403) {
+        clearCredentials()
+        window.location.href = '/login'
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Erreur lors de la création du post'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const hasContext = Boolean(activeForumName && activeSubforumName)
 
   return (
     <Modal
@@ -480,53 +637,96 @@ function CreatePostModal({
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" form="create-post-form">
-            Publier
+          <Button type="submit" form="create-post-form" disabled={isSubmitting || !activeSubforumId}>
+            {isSubmitting ? 'Publication…' : 'Publier'}
           </Button>
         </div>
       }
     >
-      <form id="create-post-form" className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Communauté</label>
-          <select
-            className="w-full rounded-2xl border border-border bg-white px-4 py-2 text-sm"
-            defaultValue={defaultCommunity}
-            disabled={!hasCommunities}
-          >
-            <option value="">{hasCommunities ? 'Choisir une communauté' : 'Aucune communauté disponible'}</option>
-            {communities.map((community) => (
-              <option key={community.id} value={community.id}>
-                {community.title}
-              </option>
-            ))}
-          </select>
+      <form id="create-post-form" className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-1 text-sm text-muted">
+          {hasContext ? (
+            <p>
+              Postera dans <span className="font-semibold">r/{activeForumName}</span> •{' '}
+              <span className="font-semibold">{activeSubforumName}</span>
+            </p>
+          ) : (
+            <p>Sélectionne un forum et un sous-forum avant de créer un post.</p>
+          )}
         </div>
-        <Input label="Titre" placeholder="Donne un titre à ton post" />
+
+        <Input
+          label="Titre"
+          placeholder="Donne un titre à ton post"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          required
+        />
+
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Description</label>
+          <label className="text-sm font-medium text-foreground">Contenu</label>
           <textarea
             className="h-32 w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             placeholder="Explique ton idée, partage des liens..."
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Images</label>
-          <input
-            type="file"
-            multiple
-            className="w-full rounded-2xl border border-border px-3 py-2 text-sm text-foreground file:mr-3 file:rounded-xl file:border-none file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary"
-          />
-        </div>
+
+        {error && <p className="text-sm text-danger">{error}</p>}
       </form>
     </Modal>
   )
 }
 
-function AddCommunityModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+type CreateForumModalProps = {
+  open: boolean
+  onClose: () => void
+  onForumCreated?: () => void
+}
+
+function CreateForumModal({ open, onClose, onForumCreated }: CreateForumModalProps) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!name.trim() || !description.trim()) {
+      setError('Le nom et la description sont obligatoires.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await apiClient.post('/api/v1/forums/create/', {
+        name: name.trim(),
+        description: description.trim(),
+      })
+
+      setName('')
+      setDescription('')
+      onClose()
+      onForumCreated?.()
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.status === 403) {
+        clearCredentials()
+        window.location.href = '/login'
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Erreur lors de la création du forum'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <Modal
-      title="Ajouter une communauté"
+      title="Créer un forum"
       open={open}
       onClose={onClose}
       footer={
@@ -534,15 +734,140 @@ function AddCommunityModal({ open, onClose }: { open: boolean; onClose: () => vo
           <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" form="add-community-form">
-            Ajouter
+          <Button type="submit" form="create-forum-form" disabled={isSubmitting}>
+            {isSubmitting ? 'Création…' : 'Créer'}
           </Button>
         </div>
       }
     >
-      <form id="add-community-form" className="space-y-4">
-        <Input label="Nom de la communauté" placeholder="ex : r/engagement-local" />
+      <form id="create-forum-form" className="space-y-4" onSubmit={handleSubmit}>
+        <Input
+          label="Nom du forum"
+          placeholder="ex : r/démocratie-locale"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">Description</label>
+          <textarea
+            className="h-24 w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Décris le thème et les règles de ton forum."
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+        {error && <p className="text-sm text-danger">{error}</p>}
       </form>
     </Modal>
   )
 }
+
+type CreateSubforumModalProps = {
+  open: boolean
+  onClose: () => void
+  activeForumName: string | null
+  activeForumId: string | null
+  onSubforumCreated?: () => void
+}
+
+function CreateSubforumModal({
+  open,
+  onClose,
+  activeForumName,
+  activeForumId,
+  onSubforumCreated,
+}: CreateSubforumModalProps) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+
+    if (!activeForumId) {
+      setError("Sélectionne d'abord un forum.")
+      return
+    }
+
+    if (!name.trim() || !description.trim()) {
+      setError('Le nom et la description sont obligatoires.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await apiClient.post(`/api/v1/forums/${activeForumId}/subforums/create/`, {
+        name: name.trim(),
+        description: description.trim(),
+      })
+
+      setName('')
+      setDescription('')
+      onClose()
+      onSubforumCreated?.()
+    } catch (err) {
+      if (err instanceof ApiHttpError && err.status === 403) {
+        clearCredentials()
+        window.location.href = '/login'
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Erreur lors de la création du sous-forum'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Créer un sous-forum"
+      open={open}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button type="submit" form="create-subforum-form" disabled={isSubmitting || !activeForumId}>
+            {isSubmitting ? 'Création…' : 'Créer'}
+          </Button>
+        </div>
+      }
+    >
+      <form id="create-subforum-form" className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-1 text-sm text-muted">
+          {activeForumId ? (
+            <p>
+              Sous-forum de <span className="font-semibold">r/{activeForumName}</span>
+            </p>
+          ) : (
+            <p>Sélectionne un forum avant de créer un sous-forum.</p>
+          )}
+        </div>
+
+        <Input
+          label="Nom du sous-forum"
+          placeholder="ex : débats, ressources, actions locales…"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">Description</label>
+          <textarea
+            className="h-24 w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Décris le sujet de ce sous-forum."
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </div>
+        {error && <p className="text-sm text-danger">{error}</p>}
+      </form>
+    </Modal>
+  )
+}
+
+
