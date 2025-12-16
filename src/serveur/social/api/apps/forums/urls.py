@@ -5,7 +5,7 @@ from django.urls import path
 from .views import (
     ForumsListView, CreateForumView, ForumDetailView,
     SearchForumsView, JoinForumView, LeaveForumView,
-    UserForumsView, ForumSubforumsView, CreateForumSubforumView
+    UserForumsView, ForumSubforumsView, ForumTreeView, CreateForumSubforumView
 )
 
 app_name = 'forums'
@@ -20,6 +20,7 @@ urlpatterns = [
     # Specific forum
     path('<str:forum_id>/', ForumDetailView.as_view(), name='forum-detail'),
     path('<str:forum_id>/subforums/', ForumSubforumsView.as_view(), name='forum-subforums'),
+    path('<str:forum_id>/tree/', ForumTreeView.as_view(), name='forum-tree'),
     path('<str:forum_id>/subforums/create/', CreateForumSubforumView.as_view(), name='create-forum-subforum'),
     path('<str:forum_id>/join/', JoinForumView.as_view(), name='join-forum'),
     path('<str:forum_id>/leave/', LeaveForumView.as_view(), name='leave-forum'),

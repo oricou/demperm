@@ -192,7 +192,7 @@ class Migration(migrations.Migration):
             name='Follow',
             fields=[
                 ('follow_id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')], default='accepted', max_length=20)),
+                ('status', models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('refused', 'Refused')], default='accepted', max_length=20)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('follower', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='following', to='db.user')),
                 ('following', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='followers', to='db.user')),

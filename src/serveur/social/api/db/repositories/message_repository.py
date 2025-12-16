@@ -112,12 +112,38 @@ class ReportRepository:
     def create(reporter_id: str, target_type: str, target_id: str, reason: str, 
                description: Optional[str] = None) -> Report:
         """Create a new report."""
+        # Normalize reason to one of the short choice keys to avoid DB varchar limits.
+        # If the incoming reason is free-text, try to map it to a known keyword
+        # (spam, harassment, inappropriate, misinformation). Otherwise store
+        # the full text in `description` and use 'other' as the reason.
+        orig_reason = (reason or '').strip()
+        reason_lower = orig_reason.lower()
+        known_reasons = ['spam', 'harassment', 'inappropriate', 'misinformation', 'other']
+
+        selected_reason = None
+        for kr in known_reasons:
+            if kr in reason_lower:
+                selected_reason = kr
+                break
+
+        stored_description = description
+        if selected_reason is None:
+            # No keyword match — store as 'other' and preserve text in description
+            selected_reason = 'other'
+            # prefer provided description if any, otherwise store original reason
+            if not stored_description:
+                stored_description = orig_reason if orig_reason else None
+        else:
+            # If the original reason is longer than the short key, preserve it in description
+            if orig_reason and orig_reason != selected_reason:
+                stored_description = orig_reason if not stored_description else stored_description
+
         return Report.objects.create(
             reporter_id=reporter_id,
             target_type=target_type,
             target_id=target_id,
-            reason=reason,
-            description=description
+            reason=selected_reason,
+            description=stored_description
         )
     
     @staticmethod
@@ -136,7 +162,9 @@ class ReportRepository:
         if status:
             query = query.filter(status=status)
         total = query.count()
-        return query.order_by('-created_at')[offset:offset + page_size], total
+        # Return a list so callers can use Python indexing (including negative indices)
+        reports_qs = query.order_by('-created_at')[offset:offset + page_size]
+        return list(reports_qs), total
     
     @staticmethod
     def update_status(report_id: str, status: str, resolved_by_id: Optional[str] = None) -> Optional[Report]:
@@ -163,14 +191,26 @@ class AuditLogRepository:
                resource_id: Optional[str] = None, details: Optional[str] = None,
                ip_address: Optional[str] = None) -> AuditLog:
         """Create a new audit log entry."""
-        return AuditLog.objects.create(
+        # Ensure resource_id is stored as a string for consistent comparisons
+        stored_resource_id = str(resource_id) if resource_id is not None else None
+        print('DEBUG: AuditLogRepository.create called with resource_id=', repr(resource_id), 'stored=', repr(stored_resource_id))
+        audit = AuditLog.objects.create(
             user_id=user_id,
             action_type=action_type,
             resource_type=resource_type,
-            resource_id=resource_id,
+            resource_id=stored_resource_id,
             details=details,
             ip_address=ip_address
         )
+        # Force-update DB row in case of type mismatches and re-fetch
+        try:
+            AuditLog.objects.filter(log_id=audit.log_id).update(resource_id=stored_resource_id)
+            refreshed = AuditLog.objects.get(log_id=audit.log_id)
+            print('DEBUG: created audit resource_id repr after create:', repr(getattr(refreshed, '__dict__', {}).get('resource_id')))
+            return refreshed
+        except Exception as e:
+            print('DEBUG: audit create/refresh exception', e)
+            return audit
     
     @staticmethod
     def get_by_user(user_id: str, page: int = 1, page_size: int = 20) -> List[AuditLog]:

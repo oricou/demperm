@@ -217,3 +217,5 @@ __marimo__/
 # Firebase credentials
 firebase-service-account.json
 firebase-adminsdk-key.json
+
+**/CLAUDE.md

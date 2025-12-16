@@ -1,5 +1,6 @@
 import pytest
 from services.apps_services.forum_service import ForumService
+from services.apps_services.domain_service import DomainService
 from common.exceptions import ConflictError, NotFoundError
 
 

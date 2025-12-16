@@ -44,15 +44,17 @@ def admin_user(db):
 @pytest.fixture
 def authenticated_client(api_client, test_user):
     """Return authenticated API client."""
-    api_client.force_authenticate(user=test_user)
-    return api_client
+    client = APIClient()
+    client.force_authenticate(user=test_user)
+    return client
 
 
 @pytest.fixture
 def admin_client(api_client, admin_user):
     """Return authenticated admin API client."""
-    api_client.force_authenticate(user=admin_user)
-    return api_client
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+    return client
 
 
 @pytest.fixture
