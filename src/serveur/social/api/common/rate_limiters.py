@@ -71,51 +71,51 @@ def get_client_ip(request):
 
 # Predefined rate limiters
 def rate_limit_auth(func):
-    """Rate limit for authentication endpoints: 10 requests per minute."""
-    return rate_limit('auth', 10, 60)(func)
+    """Rate limit for authentication endpoints: 1000 requests per minute."""
+    return rate_limit('auth', 1000, 60)(func)
 
 
 def rate_limit_post_create(func):
-    """Rate limit for post creation: 10 requests per hour."""
-    return rate_limit('post_create', 10, 3600)(func)
+    """Rate limit for post creation: 1000 requests per hour."""
+    return rate_limit('post_create', 1000, 3600)(func)
 
 
 def rate_limit_comment_create(func):
-    """Rate limit for comment creation: 30 requests per hour."""
-    return rate_limit('comment_create', 30, 3600)(func)
+    """Rate limit for comment creation: 3000 requests per hour."""
+    return rate_limit('comment_create', 3000, 3600)(func)
 
 
 def rate_limit_like(func):
-    """Rate limit for likes: 100 requests per hour."""
-    return rate_limit('like', 100, 3600)(func)
+    """Rate limit for likes: 10000 requests per hour."""
+    return rate_limit('like', 10000, 3600)(func)
 
 
 def rate_limit_message_send(func):
-    """Rate limit for sending messages: 50 requests per hour."""
-    return rate_limit('message_send', 50, 3600)(func)
+    """Rate limit for sending messages: 5000 requests per hour."""
+    return rate_limit('message_send', 5000, 3600)(func)
 
 
 def rate_limit_report(func):
-    """Rate limit for reports: 20 requests per hour."""
-    return rate_limit('report', 20, 3600)(func)
+    """Rate limit for reports: 2000 requests per hour."""
+    return rate_limit('report', 2000, 3600)(func)
 
 
 def rate_limit_search(func):
-    """Rate limit for search: 100 requests per hour."""
-    return rate_limit('search', 100, 3600)(func)
+    """Rate limit for search: 100000 requests per hour."""
+    return rate_limit('search', 100000, 3600)(func)
 
 
 def rate_limit_profile_update(func):
-    """Rate limit for profile updates: 10 requests per hour."""
-    return rate_limit('profile_update', 10, 3600)(func)
+    """Rate limit for profile updates: 1000 requests per hour."""
+    return rate_limit('profile_update', 1000, 3600)(func)
 
 
 def rate_limit_block(func):
-    """Rate limit for blocking users: 20 requests per hour."""
-    return rate_limit('block', 20, 3600)(func)
+    """Rate limit for blocking users: 2000 requests per hour."""
+    return rate_limit('block', 2000, 3600)(func)
 
 
 def rate_limit_general(func):
     """General rate limit: 100 requests per hour."""
-    return rate_limit('general', 100, 3600)(func)
+    return rate_limit('general', 100000, 3600)(func)
 
