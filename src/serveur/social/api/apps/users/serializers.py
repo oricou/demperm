@@ -55,8 +55,15 @@ class UpdateUserProfileSerializer(serializers.Serializer):
 
 class UpdateUserSettingsSerializer(serializers.Serializer):
     """Serializer for updating user settings."""
+    # Current fields
     email_notifications = serializers.BooleanField(required=False)
     language = serializers.ChoiceField(choices=['fr', 'en'], required=False)
+
+    # Backwards-compatible legacy field names used by older tests/clients
+    privacy_profile = serializers.BooleanField(required=False)
+    privacy_posts = serializers.BooleanField(required=False)
+    notifications_enabled = serializers.BooleanField(required=False)
+    notifications_email = serializers.BooleanField(required=False)
 
 
 class UserSearchSerializer(serializers.Serializer):

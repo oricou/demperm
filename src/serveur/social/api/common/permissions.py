@@ -1,20 +1,23 @@
 """
 Custom permissions for API endpoints.
 """
-from rest_framework import permissions
+from rest_framework import permissions as rf_permissions
+from rest_framework import exceptions as rf_exceptions
 from db.repositories.user_repository import BlockRepository
 
 
-class IsAuthenticated(permissions.BasePermission):
+class IsAuthenticated(rf_permissions.IsAuthenticated):
+    """Alias of DRF's IsAuthenticated that explicitly raises NotAuthenticated
+    to ensure the framework returns HTTP 401 for unauthenticated requests.
     """
-    Allow access only to authenticated users.
-    """
-    
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated)
+        is_auth = bool(request.user and getattr(request.user, 'is_authenticated', False))
+        if not is_auth:
+            raise rf_exceptions.NotAuthenticated()
+        return True
 
 
-class IsAdmin(permissions.BasePermission):
+class IsAdmin(rf_permissions.BasePermission):
     """
     Allow access only to admin users.
     """
@@ -28,7 +31,7 @@ class IsAdmin(permissions.BasePermission):
         )
 
 
-class IsOwnerOrAdmin(permissions.BasePermission):
+class IsOwnerOrAdmin(rf_permissions.BasePermission):
     """
     Allow access only to the owner of the object or admin.
     """
@@ -47,7 +50,7 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         return False
 
 
-class IsNotBanned(permissions.BasePermission):
+class IsNotBanned(rf_permissions.BasePermission):
     """
     Deny access to banned users.
     """
@@ -59,7 +62,7 @@ class IsNotBanned(permissions.BasePermission):
         return not getattr(request.user, 'is_banned', False)
 
 
-class IsNotBlocked(permissions.BasePermission):
+class IsNotBlocked(rf_permissions.BasePermission):
     """
     Check if users have blocked each other.
     """
@@ -89,14 +92,14 @@ class IsNotBlocked(permissions.BasePermission):
         return True
 
 
-class CanViewProfile(permissions.BasePermission):
+class CanViewProfile(rf_permissions.BasePermission):
     """
     Check if user can view a profile based on privacy settings.
     """
     
     def has_object_permission(self, request, view, obj):
-        # Public profiles are visible to everyone
-        if hasattr(obj, 'profile') and obj.profile.privacy == 'public':
+        # Public profiles are visible to everyone (privacy True == public)
+        if hasattr(obj, 'profile') and obj.profile.privacy:
             return True
         
         # Owner can always view their own profile
@@ -109,7 +112,7 @@ class CanViewProfile(permissions.BasePermission):
                 return True
             
             # For private profiles, check if requester is a follower
-            if hasattr(obj, 'profile') and obj.profile.privacy == 'private':
+            if hasattr(obj, 'profile') and not obj.profile.privacy:
                 from db.repositories.user_repository import FollowRepository
                 followers = FollowRepository.get_followers(str(obj.user_id), status='accepted')
                 follower_ids = [str(f.follower_id) for f in followers]
@@ -118,7 +121,7 @@ class CanViewProfile(permissions.BasePermission):
         return False
 
 
-class CanViewPost(permissions.BasePermission):
+class CanViewPost(rf_permissions.BasePermission):
     """
     Check if user can view a post based on author's privacy settings.
     """
@@ -130,8 +133,8 @@ class CanViewPost(permissions.BasePermission):
         
         author = obj.user
         
-        # Public profiles - posts visible to all
-        if hasattr(author, 'profile') and author.profile.privacy == 'public':
+        # Public profiles - posts visible to all (privacy True == public)
+        if hasattr(author, 'profile') and author.profile.privacy:
             return True
         
         # Author can always view their own posts
@@ -144,7 +147,7 @@ class CanViewPost(permissions.BasePermission):
                 return True
             
             # For private profiles, check if requester is a follower
-            if hasattr(author, 'profile') and author.profile.privacy == 'private':
+            if hasattr(author, 'profile') and not author.profile.privacy:
                 from db.repositories.user_repository import FollowRepository
                 followers = FollowRepository.get_followers(str(author.user_id), status='accepted')
                 follower_ids = [str(f.follower_id) for f in followers]

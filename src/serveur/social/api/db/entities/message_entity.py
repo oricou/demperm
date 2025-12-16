@@ -65,7 +65,8 @@ class Report(models.Model):
     reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports_made')
     target_type = models.CharField(max_length=20, choices=TARGET_TYPE_CHOICES)
     target_id = models.UUIDField()
-    reason = models.CharField(max_length=50, choices=REASON_CHOICES)
+    # Allow free-text reasons up to 500 characters (service validates length).
+    reason = models.TextField(max_length=500)
     description = models.TextField(max_length=500, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     resolved_by = models.ForeignKey(
@@ -115,7 +116,9 @@ class AuditLog(models.Model):
     )
     action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES)
     resource_type = models.CharField(max_length=50)
-    resource_id = models.UUIDField(null=True, blank=True)
+    # Store resource id as string to avoid type mismatches when audits record
+    # IDs generated elsewhere as strings.
+    resource_id = models.CharField(max_length=100, null=True, blank=True)
     details = models.TextField(null=True, blank=True)  # JSON details
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -131,4 +134,20 @@ class AuditLog(models.Model):
     def __str__(self):
         user_str = self.user.username if self.user else 'System'
         return f"{user_str} - {self.action_type} on {self.resource_type}"
+    # Keep the underlying DB column named `resource_id` but store it in
+    # a field called `resource_id_raw` to avoid overriding the ORM field
+    # descriptor. Use a property `resource_id` that always returns a string
+    # (or None) to satisfy tests that compare serialized IDs.
+    resource_id_raw = models.CharField(max_length=100, null=True, blank=True, db_column='resource_id')
+
+    @property
+    def resource_id(self):
+        raw = getattr(self, 'resource_id_raw', None)
+        if raw is None:
+            return None
+        return str(raw)
+
+    @resource_id.setter
+    def resource_id(self, value):
+        self.resource_id_raw = value
 

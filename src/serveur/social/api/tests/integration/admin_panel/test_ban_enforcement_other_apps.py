@@ -7,6 +7,7 @@ from rest_framework import status
 
 from db.entities.user_entity import User, UserProfile, UserSettings, Follow
 from db.entities.domain_entity import Domain, Subforum, Forum
+from db.repositories.domain_repository import SubforumRepository
 from db.entities.post_entity import Post, Comment
 from db.entities.message_entity import Message
 from db.repositories.user_repository import FollowRepository
@@ -24,9 +25,9 @@ if not hasattr(Comment, "author"):
 if not hasattr(Forum, "name"):
     Forum.name = property(lambda self: self.forum_name)
 if not hasattr(FollowRepository, "get_follow"):
-    FollowRepository.get_follow = staticmethod(lambda follower_id, followed_id: None)
+    FollowRepository.get_follow = staticmethod(lambda follower_id, following_id: None)
 if not hasattr(Follow, "followed_id"):
-    Follow.followed_id = property(lambda self: self.following_id)
+    Follow.followed_id = property(lambda self: self.following.user_id)
 
 
 def _create_user(prefix: str) -> User:
@@ -42,11 +43,11 @@ def _create_user(prefix: str) -> User:
 
 def _create_post(author: User) -> Post:
     domain = Domain.objects.create(domain_name="Ban Domain", description="desc")
-    subforum = Subforum.objects.create(
-        parent_domain=domain,
-        creator=author,
+    # Create subforum using repository so required forum_id is set
+    subforum = SubforumRepository.create(
+        creator_id=str(author.user_id),
         subforum_name="Ban Subforum",
-        description="desc",
+        parent_domain_id=domain.domain_id
     )
     return Post.objects.create(
         user=author,
