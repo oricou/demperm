@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiClient } from '../../../domains/vote/api/apiClient'
-import { getCredentials, getUser, setUser } from '../../../shared/auth'
+import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
+import { clearCredentials, getCredentials, getUser, setUser } from '../../../shared/auth'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { PreferencesPanel } from '../../../components/composite/PreferencesPanel'
@@ -73,9 +73,9 @@ export default function SocialDashboardPage() {
       if (!token) return
 
       try {
-        const payload = await apiClient.get<ApiUserPayload>('/api/v1/users/me/')
+        const payload = await apiClient.get<ApiUserPayload | null>('/api/v1/users/me/')
 
-        if (payload === null) {
+        if (!payload) {
           navigate('/profil/create', { replace: true })
           return
         }
@@ -83,6 +83,11 @@ export default function SocialDashboardPage() {
         setUser(payload)
         applyUserPayload(payload)
       } catch (error) {
+        if (error instanceof ApiHttpError && error.status === 403) {
+          clearCredentials()
+          navigate('/login', { replace: true })
+          return
+        }
         // eslint-disable-next-line no-console
         console.warn('Erreur lors du chargement de /users/me', error)
       }

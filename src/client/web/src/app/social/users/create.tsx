@@ -34,7 +34,8 @@ export default function CreateProfilePage() {
         username: username.trim(),
         bio: bio.trim() || null,
         location: location.trim() || null,
-        privacy: isPrivate ? 'private' : 'public',
+        // Backend expects a boolean: True = public, False = private
+        privacy: !isPrivate,
       })
 
       setUser(payload)

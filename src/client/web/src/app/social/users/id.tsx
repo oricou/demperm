@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { apiClient } from '../../../domains/vote/api/apiClient'
-import { getUser } from '../../../shared/auth'
+import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
+import { clearCredentials, getUser, setUser } from '../../../shared/auth'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { InfoCard } from '../../../components/composite/InfoCard'
@@ -85,6 +85,24 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     async function loadProfile() {
+      // Vérifie d'abord si un utilisateur social existe via /users/me
+      try {
+        const me = await apiClient.get<ApiUserPayload | null>('/api/v1/users/me/')
+        if (!me) {
+          navigate('/profil/create', { replace: true })
+          return
+        }
+        setUser(me)
+      } catch (error) {
+        if (error instanceof ApiHttpError && error.status === 403) {
+          clearCredentials()
+          navigate('/login', { replace: true })
+          return
+        }
+        // eslint-disable-next-line no-console
+        console.warn('Erreur lors du chargement de /users/me (profil public)', error)
+      }
+
       const stored = getUser<ApiUserPayload>()
       const selfUserId = stored?.user_id ?? null
       const viewingSelf = !userIdParam || targetUserId === 'user-main' || (selfUserId && targetUserId === selfUserId)
@@ -108,6 +126,11 @@ export default function PublicProfilePage() {
             { label: 'Abonnements', value: allFollowing.length.toString() },
           ])
         } catch (error) {
+          if (error instanceof ApiHttpError && error.status === 403) {
+            clearCredentials()
+            navigate('/login', { replace: true })
+            return
+          }
           // eslint-disable-next-line no-console
           console.warn('Erreur lors du chargement des followers/following', error)
         }
