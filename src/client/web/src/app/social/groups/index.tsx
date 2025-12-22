@@ -45,6 +45,12 @@ type PostDetail = {
   likeCount: number
   commentCount: number
   likedByMe: boolean
+  tags?: TagItem[]
+}
+
+type TagItem = {
+  id: string
+  name: string
 }
 
 type CommentItem = {
@@ -104,6 +110,7 @@ type ApiPostDetail = {
   comment_count: number
   created_at: string
   updated_at: string
+  tags?: { tag_id: string; tag_name: string }[]
 }
 
 type ApiPostLike = {
@@ -112,6 +119,11 @@ type ApiPostLike = {
   username: string
   post_id: string
   created_at: string
+}
+
+type ApiTag = {
+  tag_id: string
+  tag_name: string
 }
 
 type ApiComment = {
@@ -141,10 +153,15 @@ export default function ForumHomePage() {
   const [posts, setPosts] = useState<PostSummary[]>([])
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [selectedPost, setSelectedPost] = useState<PostDetail | null>(null)
+  const [selectedPostTags, setSelectedPostTags] = useState<TagItem[]>([])
   const [isDetailView, setIsDetailView] = useState(false)
   const [comments, setComments] = useState<CommentItem[]>([])
   const [isCommentsLoading, setIsCommentsLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
+  const [allTags, setAllTags] = useState<TagItem[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [newTagName, setNewTagName] = useState('')
+  const [isCreatingTag, setIsCreatingTag] = useState(false)
   const [isCreatePostModalOpen, setCreatePostModalOpen] = useState(false)
   const [isCreateForumModalOpen, setCreateForumModalOpen] = useState(false)
   const [isCreateSubforumModalOpen, setCreateSubforumModalOpen] = useState(false)
@@ -164,6 +181,10 @@ export default function ForumHomePage() {
     if (stored?.user_id) {
       setCurrentUserId(stored.user_id)
     }
+  }, [])
+
+  useEffect(() => {
+    void loadAllTags()
   }, [])
 
   async function loadInitialData() {
@@ -238,6 +259,7 @@ export default function ForumHomePage() {
     setActivePostId(null)
     setSelectedPost(null)
     setIsDetailView(false)
+    setSelectedPostTags([])
     setComments([])
 
     try {
@@ -262,11 +284,13 @@ export default function ForumHomePage() {
     setActivePostId(postId)
     setIsDetailView(true)
     setSelectedPost(null)
+    setSelectedPostTags([])
      setComments([])
 
     try {
       const detail = await fetchPostDetailWithLikeState(postId)
       setSelectedPost(detail)
+      setSelectedPostTags(detail.tags ?? [])
       await loadComments(postId)
     } catch (err) {
       handleHttpError(err, "Erreur lors du chargement du post")
@@ -294,6 +318,7 @@ export default function ForumHomePage() {
     setActivePostId(null)
     setSelectedPost(null)
     setIsDetailView(false)
+    setSelectedPostTags([])
     setComments([])
   }
 
@@ -329,6 +354,7 @@ export default function ForumHomePage() {
       await apiClient.delete(`/api/v1/posts/${postId}/delete/`)
       setSelectedPost(null)
       setIsDetailView(false)
+      setSelectedPostTags([])
       setComments([])
       if (activeSubforumId) {
         await loadSubforum(activeSubforumId)
@@ -366,6 +392,18 @@ export default function ForumHomePage() {
       likeCount: data.like_count,
       commentCount: data.comment_count,
       likedByMe,
+      tags: (data.tags ?? []).map((t) => ({ id: t.tag_id, name: t.tag_name })),
+    }
+  }
+
+  async function loadAllTags() {
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 100 })
+      const data = await apiClient.get<ApiTag[]>(`/api/v1/tags/${query}`)
+      setAllTags(data.map((tag) => ({ id: tag.tag_id, name: tag.tag_name })))
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du chargement des tags', err)
     }
   }
 
@@ -416,6 +454,50 @@ export default function ForumHomePage() {
       setSelectedPost((prev) => (prev && prev.commentCount > 0 ? { ...prev, commentCount: prev.commentCount - 1 } : prev))
     } catch (err) {
       handleHttpError(err, 'Erreur lors de la suppression du commentaire')
+    }
+  }
+
+  function handleToggleSelectedTag(tagId: string) {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    )
+  }
+
+  async function handleAssignTagsToPost() {
+    if (!selectedPost || selectedTagIds.length === 0 || !currentUserId) return
+
+    try {
+      await apiClient.post(`/api/v1/tags/assign/${selectedPost.id}/`, {
+        tags: selectedTagIds,
+      })
+
+      const updated = await fetchPostDetailWithLikeState(selectedPost.id)
+      setSelectedPost(updated)
+      setSelectedPostTags(updated.tags ?? [])
+    } catch (err) {
+      handleHttpError(err, "Erreur lors de l'assignation des tags")
+    }
+  }
+
+  async function handleCreateTag() {
+    const trimmed = newTagName.trim()
+    if (!trimmed) return
+
+    setIsCreatingTag(true)
+    try {
+      const created = await apiClient.post<ApiTag>('/api/v1/tags/create/', {
+        tag_name: trimmed,
+      })
+
+      setAllTags((prev) => [
+        ...prev,
+        { id: created.tag_id, name: created.tag_name },
+      ])
+      setNewTagName('')
+    } catch (err) {
+      handleHttpError(err, "Erreur lors de la création du tag")
+    } finally {
+      setIsCreatingTag(false)
     }
   }
 
@@ -647,6 +729,18 @@ export default function ForumHomePage() {
                         u/{selectedPost.authorUsername} •{' '}
                         {new Date(selectedPost.createdAt).toLocaleString('fr-FR')}
                       </p>
+                      {selectedPostTags.length > 0 && (
+                        <p className="flex flex-wrap gap-1 text-[11px]">
+                          {selectedPostTags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+                            >
+                              #{tag.name}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
                     <h2 className="text-2xl font-semibold text-foreground">{selectedPost.title}</h2>
                   </div>
@@ -761,6 +855,71 @@ export default function ForumHomePage() {
                       </form>
                     )}
                   </div>
+
+                  {currentUserId && canDeleteSelectedPost && (
+                    <div className="space-y-3 border-t border-border pt-4">
+                      <h3 className="text-sm font-semibold text-foreground">Tags</h3>
+                      <p className="text-xs text-muted">
+                        Sélectionne jusqu'à 5 tags pour ce post.
+                      </p>
+                      {allTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {allTags.map((tag) => {
+                            const isSelected = selectedTagIds.includes(tag.id)
+                            const isAlreadyOnPost = selectedPostTags.some((t) => t.id === tag.id)
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => handleToggleSelectedTag(tag.id)}
+                                className={`rounded-full border px-2 py-1 text-[11px] transition ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border bg-background-soft text-muted hover:border-primary/40'
+                                } ${isAlreadyOnPost ? 'font-semibold' : ''}`}
+                              >
+                                #{tag.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted">Aucun tag existant pour l'instant.</p>
+                      )}
+                      <div className="space-y-2 pt-2">
+                        <label className="text-xs font-medium text-foreground">Créer un nouveau tag</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newTagName}
+                            onChange={(event) => setNewTagName(event.target.value)}
+                            className="flex-1 rounded-full border border-border bg-background px-3 py-1 text-[13px] outline-none focus:border-primary"
+                            placeholder="Nom du tag (ex : démocratie)"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="primary"
+                            disabled={!newTagName.trim() || isCreatingTag}
+                            onClick={() => void handleCreateTag()}
+                          >
+                            {isCreatingTag ? 'Création…' : 'Créer'}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={selectedTagIds.length === 0}
+                          onClick={() => void handleAssignTagsToPost()}
+                        >
+                          Assigner les tags
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               )}
             </Card>
