@@ -461,7 +461,7 @@ export default function SocialDashboardPage() {
                     <li
                       key={user.user_id}
                       className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3 py-2 hover:bg-background-soft"
-                      onClick={() => navigate(`/social/users?userId=${user.user_id}`)}
+                      onClick={() => navigate(`/profil/public?userId=${user.user_id}`)}
                     >
                       <span className="font-medium text-foreground">
                         {user.display_name || user.username}

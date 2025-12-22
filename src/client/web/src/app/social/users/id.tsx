@@ -29,6 +29,16 @@ type ApiFollow = {
   created_at: string
 }
 
+type ApiPublicUser = {
+  user_id: string
+  username: string
+  display_name: string | null
+  profile_picture_url: string | null
+  bio: string | null
+  location: string | null
+  created_at: string
+}
+
 type ApiUserPayload = {
   user_id: string
   email: string
@@ -145,6 +155,58 @@ export default function PublicProfilePage() {
         }
       }
 
+      if (!viewingSelf && userIdParam && userIdParam !== 'user-main') {
+        try {
+          const publicUser = await apiClient.get<ApiPublicUser>(`/api/v1/users/${targetUserId}/`)
+
+          const fullName = publicUser.display_name || publicUser.username
+          const location = publicUser.location || ''
+          const bio = publicUser.bio || ''
+
+          setProfile((prev) => ({
+            ...prev,
+            fullName,
+            role: 'Citoyen',
+            location,
+            avatarUrl: publicUser.profile_picture_url || prev.avatarUrl,
+            bio,
+          }))
+
+          const firstName = fullName.split(' ')[0] ?? ''
+          const lastName = fullName.split(' ').slice(1).join(' ') ?? ''
+
+          setInfoItems([
+            { label: 'Prénom', value: firstName },
+            { label: 'Nom', value: lastName },
+            { label: 'Pseudo', value: publicUser.username },
+          ])
+
+          setStats([
+            { label: 'Créé le', value: new Date(publicUser.created_at).toLocaleDateString('fr-FR') },
+          ])
+        } catch (error) {
+          if (error instanceof ApiHttpError && error.status === 403) {
+            // Profil privé non accessible : on affiche un état minimal
+            setProfile((prev) => ({
+              ...prev,
+              fullName: 'Profil privé',
+              role: 'Citoyen',
+            }))
+            return
+          }
+          if (error instanceof ApiHttpError && error.status === 404) {
+            setProfile((prev) => ({
+              ...prev,
+              fullName: 'Profil introuvable',
+              role: '',
+            }))
+            return
+          }
+          // eslint-disable-next-line no-console
+          console.warn('Erreur lors du chargement du profil public cible', error)
+        }
+      }
+
       if (!viewingSelf && stored && userIdParam && userIdParam !== 'user-main') {
         try {
           const allFollowing = await fetchAllFollows('/api/v1/following/me/following/')
@@ -205,6 +267,11 @@ export default function PublicProfilePage() {
       if (error instanceof ApiHttpError && error.status === 403) {
         clearCredentials()
         navigate('/login', { replace: true })
+        return
+      }
+      if (error instanceof ApiHttpError && error.status >= 500) {
+        // eslint-disable-next-line no-console
+        console.warn('Erreur serveur lors du follow', error)
         return
       }
       // eslint-disable-next-line no-console
@@ -390,7 +457,7 @@ export default function PublicProfilePage() {
                 Ajouter à la messagerie
               </Button>
               <p className="text-xs text-muted">
-                L'ajout au carnet de contacts sera branché quand le backend sera prêt.
+                Les futures fonctionnalités de carnet de contacts apparaîtront ici.
               </p>
             </CardContent>
           </Card>
