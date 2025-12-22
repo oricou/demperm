@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
 import { clearCredentials, getUser, setUser } from '../../../shared/auth'
+import { getPublicProfile } from '../../../domains/social/api'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { InfoCard } from '../../../components/composite/InfoCard'
@@ -59,6 +60,8 @@ type ApiUserPayload = {
     language: string
   }
 }
+type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
+type VoteCategory = { id: string; label: string }
 
 /**
  * Page profil public : lit l'identifiant cible via la query (?userId=) et affiche les données mockées.
