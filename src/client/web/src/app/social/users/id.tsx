@@ -13,7 +13,6 @@ import { Select } from '../../../components/ui/Select'
 type InfoField = 'Prénom' | 'Nom' | 'Pseudo'
 type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
-type VoteCategory = { id: string; label: string }
 
 type FollowUser = {
   user_id: string
