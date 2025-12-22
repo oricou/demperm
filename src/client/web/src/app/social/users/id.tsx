@@ -21,6 +21,14 @@ type FollowUser = {
   profile_picture_url: string | null
 }
 
+type ApiFollow = {
+  follow_id: string
+  follower_id: string
+  followed_id: string
+  status: 'accepted' | 'pending' | 'rejected'
+  created_at: string
+}
+
 type ApiUserPayload = {
   user_id: string
   email: string
@@ -60,6 +68,9 @@ export default function PublicProfilePage() {
   const [following, setFollowing] = useState<FollowUser[]>([])
   const [searchParams] = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followStatus, setFollowStatus] = useState<'none' | 'accepted' | 'pending'>('none')
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
   const navigate = useNavigate()
 
   const voteCategories: VoteCategory[] = useMemo(
@@ -133,6 +144,28 @@ export default function PublicProfilePage() {
           console.warn('Erreur lors du chargement des followers/following', error)
         }
       }
+
+      if (!viewingSelf && stored && userIdParam && userIdParam !== 'user-main') {
+        try {
+          const allFollowing = await fetchAllFollows('/api/v1/following/me/following/')
+          const isFollowingTarget = allFollowing.some((user) => user.user_id === targetUserId)
+          if (isFollowingTarget) {
+            setIsFollowing(true)
+            setFollowStatus('accepted')
+          } else {
+            setIsFollowing(false)
+            setFollowStatus('none')
+          }
+        } catch (error) {
+          if (error instanceof ApiHttpError && error.status === 403) {
+            clearCredentials()
+            navigate('/login', { replace: true })
+            return
+          }
+          // eslint-disable-next-line no-console
+          console.warn('Erreur lors du chargement du statut de suivi', error)
+        }
+      }
     }
     loadProfile()
   }, [targetUserId, userIdParam])
@@ -152,6 +185,54 @@ export default function PublicProfilePage() {
   /** Redirige vers la messagerie (ajout contact à brancher côté backend plus tard). */
   function handleAddToMessaging() {
     navigate('/messages')
+  }
+
+  async function handleFollow() {
+    if (!userIdParam || userIdParam === 'user-main') return
+
+    setIsFollowLoading(true)
+    try {
+      const follow = await apiClient.post<ApiFollow>(`/api/v1/following/${userIdParam}/follow/`, {})
+
+      if (follow.status === 'accepted') {
+        setIsFollowing(true)
+        setFollowStatus('accepted')
+      } else {
+        setIsFollowing(false)
+        setFollowStatus('pending')
+      }
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du follow', error)
+    } finally {
+      setIsFollowLoading(false)
+    }
+  }
+
+  async function handleUnfollow() {
+    if (!userIdParam || userIdParam === 'user-main') return
+
+    setIsFollowLoading(true)
+    try {
+      await apiClient.delete(`/api/v1/following/${userIdParam}/unfollow/`)
+      setIsFollowing(false)
+      setFollowStatus('none')
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du unfollow', error)
+    } finally {
+      setIsFollowLoading(false)
+    }
   }
 
   function applyUserPayloadPublic(payload: ApiUserPayload) {
@@ -270,8 +351,25 @@ export default function PublicProfilePage() {
           )}
           {!isSelf && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle>Voter</CardTitle>
+                {userIdParam && userIdParam !== 'user-main' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isFollowing ? 'outline' : 'primary'}
+                    disabled={isFollowLoading || followStatus === 'pending'}
+                    onClick={() => void (isFollowing ? handleUnfollow() : handleFollow())}
+                  >
+                    {isFollowLoading
+                      ? 'Chargement…'
+                      : followStatus === 'pending'
+                        ? 'Demande envoyée'
+                        : isFollowing
+                          ? 'Se désabonner'
+                          : "S'abonner"}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
               <Select

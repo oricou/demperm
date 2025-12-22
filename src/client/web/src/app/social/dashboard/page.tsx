@@ -18,6 +18,17 @@ type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
 
+type FeedPost = {
+  id: string
+  authorId: string
+  authorUsername: string
+  title: string
+  excerpt: string
+  createdAt: string
+  likeCount: number
+  commentCount: number
+}
+
 type ApiUserPost = {
   post_id: string
   author_id: string
@@ -28,6 +39,25 @@ type ApiUserPost = {
   like_count: number
   comment_count: number
   created_at: string
+}
+
+type ApiFeedPost = {
+  post_id: string
+  author_id: string
+  author_username: string
+  subforum_id: string | null
+  title: string
+  content: string
+  like_count: number
+  comment_count: number
+  created_at: string
+}
+
+type ApiUserSearchResult = {
+  user_id: string
+  username: string
+  display_name: string | null
+  profile_picture_url: string | null
 }
 
 type ApiUserPayload = {
@@ -59,6 +89,7 @@ export default function SocialDashboardPage() {
   const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
+   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [profile, setProfile] = useState({
     fullName: '',
     role: '',
@@ -67,6 +98,11 @@ export default function SocialDashboardPage() {
     bio: ''
   })
   const [stats, setStats] = useState<{ label: string; value: string }[]>([])
+  const [isFeedLoading, setIsFeedLoading] = useState(false)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState<ApiUserSearchResult[]>([])
+  const [isUserSearchLoading, setIsUserSearchLoading] = useState(false)
+  const [userSearchError, setUserSearchError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isMembershipModalOpen, setMembershipModalOpen] = useState(false)
   const [newMembership, setNewMembership] = useState({ title: '', start: '', end: '' })
@@ -96,7 +132,7 @@ export default function SocialDashboardPage() {
         applyUserPayload(payload)
 
         // Charger les posts de l'utilisateur pour la section "Posts" du profil
-        await loadUserPosts()
+        await Promise.all([loadUserPosts(), loadFeed()])
       } catch (error) {
         if (error instanceof ApiHttpError && error.status === 403) {
           clearCredentials()
@@ -134,6 +170,37 @@ export default function SocialDashboardPage() {
       }
       // eslint-disable-next-line no-console
       console.warn('Erreur lors du chargement de /posts/me', error)
+    }
+  }
+
+  async function loadFeed() {
+    try {
+      setIsFeedLoading(true)
+      const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
+      const data = await apiClient.get<ApiFeedPost[]>(`/api/v1/posts/feed/${query}`)
+
+      const mapped: FeedPost[] = data.map((post) => ({
+        id: post.post_id,
+        authorId: post.author_id,
+        authorUsername: post.author_username,
+        title: post.title,
+        excerpt: post.content,
+        createdAt: new Date(post.created_at).toLocaleDateString(),
+        likeCount: post.like_count,
+        commentCount: post.comment_count,
+      }))
+
+      setFeedPosts(mapped)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du chargement du feed', error)
+    } finally {
+      setIsFeedLoading(false)
     }
   }
 
@@ -223,6 +290,32 @@ export default function SocialDashboardPage() {
     setMembershipModalOpen(true)
   }, [])
 
+  async function handleUserSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const query = userSearchQuery.trim()
+    if (!query) return
+
+    setUserSearchError(null)
+    setIsUserSearchLoading(true)
+    try {
+      const qs = apiClient.buildQueryString({ query, page: 1, page_size: 10 })
+      const data = await apiClient.get<ApiUserSearchResult[]>(`/api/v1/users/search/${qs}`)
+      setUserSearchResults(data)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      const message = error instanceof Error ? error.message : 'Erreur lors de la recherche'
+      setUserSearchError(message)
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors de la recherche utilisateurs', error)
+    } finally {
+      setIsUserSearchLoading(false)
+    }
+  }
+
   const handleLogout = useCallback(() => {
     clearCredentials()
     navigate('/login', { replace: true })
@@ -305,11 +398,81 @@ export default function SocialDashboardPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Fil d'actualité</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isFeedLoading ? (
+                <p className="text-sm text-muted">Chargement du fil…</p>
+              ) : feedPosts.length === 0 ? (
+                <EmptyCard />
+              ) : (
+                <div className="space-y-3">
+                  {feedPosts.map((post) => (
+                    <article key={post.id} className="rounded-2xl border border-border bg-background-soft px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
+                        <p>{post.createdAt}</p>
+                        <p>u/{post.authorUsername}</p>
+                      </div>
+                      <h3 className="text-base font-semibold text-foreground">{post.title}</h3>
+                      <p className="text-sm text-muted">{post.excerpt}</p>
+                      <p className="pt-1 text-xs text-muted">
+                        👍 {post.likeCount} • 💬 {post.commentCount}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6 md:col-span-3">
           <PreferencesPanel items={preferences} isEditing={isEditing} onChange={handlePreferenceChange} />
           <InfoCard title="Infos" items={infoItems} isEditing={isEditing} onChange={handleInfoChange} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rechercher des personnes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <form className="space-y-2" onSubmit={handleUserSearchSubmit}>
+                <Input
+                  label="Nom ou pseudo"
+                  placeholder="ex : alice, bob42"
+                  value={userSearchQuery}
+                  onChange={(event) => setUserSearchQuery(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  disabled={!userSearchQuery.trim() || isUserSearchLoading}
+                >
+                  {isUserSearchLoading ? 'Recherche…' : 'Rechercher'}
+                </Button>
+              </form>
+              {userSearchError && <p className="text-xs text-danger">{userSearchError}</p>}
+              {userSearchResults.length > 0 && (
+                <ul className="space-y-2 text-sm">
+                  {userSearchResults.map((user) => (
+                    <li
+                      key={user.user_id}
+                      className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3 py-2 hover:bg-background-soft"
+                      onClick={() => navigate(`/social/users?userId=${user.user_id}`)}
+                    >
+                      <span className="font-medium text-foreground">
+                        {user.display_name || user.username}
+                      </span>
+                      <span className="text-xs text-muted">Voir le profil</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
