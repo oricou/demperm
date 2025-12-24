@@ -38,9 +38,6 @@ export default function VoteDashboardPage() {
   const [trends, setTrends] = useState<Record<string, VoteTrendByDomain>>({})
   const [activeElection, setActiveElection] = useState<string | null>(null)
   const [lastVoteTargets, setLastVoteTargets] = useState<Record<string, string>>({})
-  const [reloadKey, setReloadKey] = useState(0)
-  const [isForcingValidation, setIsForcingValidation] = useState(false)
-  const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [expandedGraphs, setExpandedGraphs] = useState<Record<string, boolean>>(
     voteCategories.reduce(
       (acc, category, index) => ({ ...acc, [`trend-${category.id}`]: index === 0 }),
@@ -99,7 +96,6 @@ export default function VoteDashboardPage() {
 
       try {
         setApiError(null)
-        setValidationMessage(null)
 
         const [receivedVotes, emittedVotes] = await Promise.all([
           voteApi.getMyReceivedVotes(),
@@ -268,7 +264,7 @@ export default function VoteDashboardPage() {
     }
 
     loadDashboard()
-  }, [reloadKey])
+  }, [])
 
   const hasElections = elections.length > 0
   const handleSelectElection = useCallback(
@@ -286,39 +282,12 @@ export default function VoteDashboardPage() {
   }, [])
   const totalVotes = dashboard?.mes_voix.total_votes_user ?? 0
   const hasVoteSummary = totalVotes > 0 || voteSummary.length > 0
-  const shouldSuggestValidation = !apiError && elections.length > 0 && totalVotes === 0
-
-  const forceValidation = useCallback(async () => {
-    setIsForcingValidation(true)
-    setValidationMessage(null)
-    try {
-      await voteApi.forceValidation()
-      setValidationMessage('Validation lancée. Actualisation…')
-      setReloadKey((k) => k + 1)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur validation'
-      setValidationMessage(`Impossible de lancer la validation (${message}).`)
-    } finally {
-      setIsForcingValidation(false)
-    }
-  }, [])
 
   return (
     <div className="grid gap-6 md:grid-cols-[280px_minmax(0,1fr)_220px]">
       {apiError ? (
         <div className="md:col-span-3 rounded-2xl border border-warning bg-yellow-50 px-5 py-3 text-sm text-warning">
           {apiError} — affichage des données de démo.
-        </div>
-      ) : null}
-      {validationMessage ? (
-        <div className="md:col-span-3 rounded-2xl border border-border bg-background-soft px-5 py-3 text-sm text-muted">
-          {validationMessage}
-        </div>
-      ) : null}
-      {shouldSuggestValidation ? (
-        <div className="md:col-span-3 rounded-2xl border border-border bg-background-soft px-5 py-3 text-sm text-muted">
-          Les votes reçus ("Mes voix") apparaissent après validation serveur. Utilise "Valider les votes" pour voir le
-          résultat tout de suite.
         </div>
       ) : null}
       {hasElections ? (
@@ -398,9 +367,6 @@ export default function VoteDashboardPage() {
           <CardContent className="space-y-3">
             <Button variant="primary" className="w-full">
               Gérer mes communautés
-            </Button>
-            <Button variant="outline" className="w-full" onClick={forceValidation} disabled={isForcingValidation}>
-              {isForcingValidation ? 'Validation…' : 'Valider les votes'}
             </Button>
             <Button variant="outline" className="w-full">
               {dashboard?.accept_votes === false ? 'Débloquer les voix' : 'Bloquer les voix'}
