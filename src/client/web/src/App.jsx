@@ -8,6 +8,7 @@ import PublicProfilePage from './app/social/users/id'
 import VoteDashboardPage from './app/vote/page'
 import ForumHomePage from './app/social/groups'
 import MessagesPage from './app/social/mailbox'
+import { GlobalProfileSearch } from './components/GlobalProfileSearch'
 
 function AppLayout() {
   return (
@@ -28,19 +29,22 @@ function RequireAuth({ children }) {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/profil" replace />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/auth/login" element={<Login />} />
-      <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-        <Route path="/profil" element={<ProfileSelfPage />} />
-        <Route path="/profil/public" element={<PublicProfilePage />} />
-        <Route path="/vote" element={<VoteDashboardPage />} />
-        <Route path="/forum" element={<ForumHomePage />} />
-        <Route path="/messages" element={<MessagesPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/profil" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to="/profil" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/login" element={<Login />} />
+        <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/profil" element={<ProfileSelfPage />} />
+          <Route path="/profil/public" element={<PublicProfilePage />} />
+          <Route path="/vote" element={<VoteDashboardPage />} />
+          <Route path="/forum" element={<ForumHomePage />} />
+          <Route path="/messages" element={<MessagesPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/profil" replace />} />
+      </Routes>
+      <GlobalProfileSearch />
+    </>
   )
 }
 
