@@ -4,6 +4,7 @@ import { Button } from './ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card'
 import { Input } from './ui/Input'
 import { users } from '../domains/social/api/mock/temp_data'
+import { getCredentials } from '../shared/auth'
 
 function SearchIcon({ className, ...props }) {
   return (
@@ -67,6 +68,7 @@ export function GlobalProfileSearch() {
   const [hasSearched, setHasSearched] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [results, setResults] = useState([])
+  const [usingFallback, setUsingFallback] = useState(false)
   const navigate = useNavigate()
 
   const profiles = useMemo(
@@ -87,6 +89,39 @@ export function GlobalProfileSearch() {
     )
   }
 
+  async function performSocialApiSearch(value) {
+    const { token } = getCredentials()
+    if (!token) {
+      throw new Error('Missing auth token')
+    }
+
+    const baseUrl = import.meta.env.VITE_SOCIAL_API_URL || '/api/v1'
+    const url = `${baseUrl}/users/search/?query=${encodeURIComponent(value)}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Social API error: HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (!Array.isArray(data)) {
+      throw new Error('Unexpected Social API response')
+    }
+
+    return data.map((user) => ({
+      id: user.user_id,
+      name: user.display_name || user.username,
+      handle: user.username ? `@${user.username}` : '',
+      meta: null
+    }))
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     const trimmed = query.trim()
@@ -97,8 +132,15 @@ export function GlobalProfileSearch() {
         setResults([])
         return
       }
-      const next = await performSearch(trimmed)
-      setResults(next)
+      try {
+        const next = await performSocialApiSearch(trimmed)
+        setUsingFallback(false)
+        setResults(next)
+      } catch {
+        const next = await performSearch(trimmed)
+        setUsingFallback(true)
+        setResults(next)
+      }
     } finally {
       setIsSearching(false)
     }
@@ -108,8 +150,8 @@ export function GlobalProfileSearch() {
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3">
       <div
         className={[
-          'pointer-events-auto w-[min(90vw,360px)] origin-bottom-right transition-all duration-200',
-          open ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+          'w-[min(90vw,360px)] origin-bottom-right transition-all duration-200',
+          open ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
         ].join(' ')}
       >
         <Card className="overflow-hidden shadow-2xl">
@@ -143,6 +185,7 @@ export function GlobalProfileSearch() {
             <div className="flex flex-col gap-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Personnes trouvées
+                {usingFallback ? <span className="ml-2 font-normal normal-case text-muted">(démo)</span> : null}
               </div>
               <div className="flex flex-col gap-2">
                 {!hasSearched ? (

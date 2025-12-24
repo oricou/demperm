@@ -27,11 +27,3 @@ export const worker = setupWorker(
   ...forumHandlers,
   ...messageHandlers
 )
-
-// The worker only runs in development mode.
-// In production, the real API must be used.
-if (process.env.NODE_ENV === 'development') {
-  worker.start({
-    onUnhandledRequest: 'bypass', // Avoid warnings for requests not mocked
-  })
-}

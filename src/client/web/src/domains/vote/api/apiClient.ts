@@ -16,7 +16,8 @@ export class ApiClient {
    * Get authentication token from localStorage
    */
   private getToken(): string | null {
-    return localStorage.getItem('token')
+    // Support both the current key (auth_token) and legacy key (token)
+    return localStorage.getItem('auth_token') ?? localStorage.getItem('token')
   }
   
   /**
