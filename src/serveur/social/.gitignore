@@ -214,3 +214,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Firebase credentials
+firebase-service-account.json
+firebase-adminsdk-key.json
+
+**/CLAUDE.md

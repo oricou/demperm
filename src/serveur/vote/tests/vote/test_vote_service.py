@@ -74,17 +74,32 @@ def test_delete_vote_delegates_to_repository(monkeypatch):
 
 
 def test_get_votes_by_voter_delegates_to_repository(monkeypatch):
+
+    fixed_now = datetime(2025, 12, 15, 6, 48, 42)
+    
     class DummyRepo:
         called_with = None
         return_value = [
-            {"id": "vote-1", "voterId": "v1", "targetUserId": "t1", "domain": "tech", "createdAt": timezone.now()},
-            {"id": "vote-2", "voterId": "v1", "targetUserId": "t2", "domain": "design", "createdAt": timezone.now()},
+            {"id": "vote-1", "voterId": "v1", "targetUserId": "t1", "domain": "tech", "createdAt": fixed_now},
+            {"id": "vote-2", "voterId": "v1", "targetUserId": "t2", "domain": "design", "createdAt": fixed_now},
         ]
 
         @staticmethod
         def find_votes_by_voter(voter_id: str, domain: str | None = None):
             DummyRepo.called_with = (voter_id, domain)
             return DummyRepo.return_value
+        
+        @staticmethod
+        def get_publish_votes_setting(user_id: str):
+            return True, {"2025-12-15": { "tech": 2, "design": 1 }}
+        
+        @staticmethod
+        def get_last_update():
+            return "2025-12-15"
+        
+        @staticmethod
+        def get_all_domains():
+            return ["tech", "design"]
 
     monkeypatch.setattr(
         "core.services.vote_service.VoteRepository",
@@ -96,12 +111,12 @@ def test_get_votes_by_voter_delegates_to_repository(monkeypatch):
 
     votes = VoteService.get_votes_by_voter(voter_id=voter_id, domain=None)
 
-    assert votes is DummyRepo.return_value
+    assert votes == DummyRepo.return_value
     assert DummyRepo.called_with == (voter_id, None)
 
     votes = VoteService.get_votes_by_voter(voter_id=voter_id, domain="tech")
 
-    assert votes is DummyRepo.return_value
+    assert votes == DummyRepo.return_value
     assert DummyRepo.called_with == (voter_id, "tech")
 
 
@@ -127,6 +142,14 @@ def test_get_received_votes_delegates_to_repository(monkeypatch):
         def get_received_votes_summary(user_id: str, domain: str | None = None) -> dict:
             DummyRepo.called_with = (user_id, domain)
             return DummyRepo.return_value
+
+        @staticmethod
+        def get_publish_votes_setting(user_id: str):
+            return True, {"2025-12-15": { "tech": 2, "design": 1 }}
+        
+        @staticmethod
+        def get_last_update():
+            return "2025-12-15"
 
     monkeypatch.setattr(
         "core.services.vote_service.VoteRepository",

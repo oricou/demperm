@@ -3,7 +3,6 @@ Django settings for demperm-social backend.
 """
 import os
 from pathlib import Path
-from datetime import timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -18,7 +17,10 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-this-in-prod
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+# Ensure the testing host used by Django's test client is allowed.
+if 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
 
 # Application definition
 INSTALLED_APPS = [
@@ -31,7 +33,6 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
-    'rest_framework_simplejwt',
     'corsheaders',
     'django_ratelimit',
     'drf_yasg',
@@ -154,7 +155,7 @@ SESSION_CACHE_ALIAS = 'default'
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'apps.custom_auth.authentication.CustomJWTAuthentication',
+        'apps.custom_auth.authentication.FirebaseAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -170,11 +171,7 @@ REST_FRAMEWORK = {
     'MAX_PAGE_SIZE': 100,
     # Use the custom exception handler in production, but when DEBUG is
     # enabled prefer DRF's default handler so we get useful debug output
-    # while developing/debugging.
-    'EXCEPTION_HANDLER': (
-        'rest_framework.views.exception_handler' if DEBUG
-        else 'common.exceptions.custom_exception_handler'
-    ),
+    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
@@ -185,38 +182,24 @@ REST_FRAMEWORK = {
     },
 }
 
-# JWT Configuration
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv('JWT_ACCESS_TOKEN_LIFETIME', '3600'))),
-    'REFRESH_TOKEN_LIFETIME': timedelta(seconds=int(os.getenv('JWT_REFRESH_TOKEN_LIFETIME', '604800'))),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': os.getenv('JWT_ALGORITHM', 'HS256'),
-    'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', SECRET_KEY),
-    'VERIFYING_KEY': None,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'user_id',
-    'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-}
-
 # drf-yasg / Swagger UI configuration
-# Force Swagger to present a Bearer (JWT) auth input instead of default Basic/Session
+# Force Swagger to present a Bearer (Firebase) auth input instead of default Basic/Session
 SWAGGER_SETTINGS = {
     # Do not include Django session authentication (login button) in the docs UI
     'USE_SESSION_AUTH': False,
-    # Define a Bearer (JWT) scheme in Swagger 2.0 (represented as apiKey in header)
+    # Define a Bearer (Firebase ID Token) scheme in Swagger 2.0 (represented as apiKey in header)
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
-            'description': 'JWT Authorization header using the Bearer scheme. Example: "Bearer <your_token>"',
+            'description': 'Firebase ID Token Authorization header using the Bearer scheme. '
+                         'Example: "Bearer <your_firebase_id_token>". '
+                         'Get your Firebase ID token from Firebase Authentication SDK after login.',
         }
     },
+    # Force all endpoints to require authentication by default
+    'SECURITY': [{'Bearer': []}],
 }
 
 # CORS Configuration
@@ -248,10 +231,10 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Google OAuth2 Configuration
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
-GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8000/api/v1/auth/google/callback')
+# Firebase Configuration
+FIREBASE_SERVICE_ACCOUNT_KEY = os.getenv('FIREBASE_SERVICE_ACCOUNT_KEY', None)
+# If FIREBASE_SERVICE_ACCOUNT_KEY is None, Firebase will use Application Default Credentials
+# This is useful when running on Google Cloud Platform
 
 # Security Settings
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
@@ -312,4 +295,3 @@ MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minioadmin')
 MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'social-media')
 MINIO_USE_SSL = os.getenv('MINIO_USE_SSL', 'False') == 'True'
-

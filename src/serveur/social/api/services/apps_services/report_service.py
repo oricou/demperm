@@ -1,7 +1,7 @@
 """
 Report and moderation service.
 """
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from django.db import transaction
 from db.repositories.message_repository import ReportRepository, AuditLogRepository
 from db.repositories.user_repository import UserRepository
@@ -95,7 +95,7 @@ class ReportService:
         status: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> List[Report]:
+    ) -> Tuple[List[Report], int]:
         """
         Get all reports (admin only).
         
@@ -105,7 +105,7 @@ class ReportService:
             page_size: Page size
             
         Returns:
-            List of reports
+            Tuple of (reports, total_count)
         """
         return ReportRepository.get_all(status, page, page_size)
     
@@ -115,7 +115,8 @@ class ReportService:
         report_id: str,
         admin_id: str,
         status: str,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
+        action_details: Optional[dict] = None
     ) -> Report:
         """
         Update report status (admin only).
@@ -140,15 +141,16 @@ class ReportService:
         
         # Update report
         report = ReportService.get_report_by_id(report_id)
-        report = ReportRepository.update_status(report_id, status)
+        resolved_by_id = admin_id if status in ['resolved', 'rejected'] else None
+        report = ReportRepository.update_status(report_id, status, resolved_by_id=resolved_by_id)
         
         # Audit log
         AuditLogRepository.create(
             user_id=admin_id,
-            action_type='report_status_updated',
+            action_type='resolve_report',
             resource_type='report',
             resource_id=report_id,
-            details={'status': status},
+            details={'status': status, 'action': action_details or {}},
             ip_address=ip_address
         )
         

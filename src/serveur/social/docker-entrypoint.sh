@@ -22,6 +22,11 @@ cd /app/api
 
 mkdir -p logs
 
+# Merge conflicting migrations automatically
+echo "🔀 Checking for migration conflicts..."
+python manage.py makemigrations --merge --noinput || echo "No conflicts to merge"
+
+
 # Run migrations
 echo "📦 Running database migrations..."
 python manage.py migrate --noinput

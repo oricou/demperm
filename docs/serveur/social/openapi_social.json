@@ -161,8 +161,23 @@
     "/followers/me": {
       "get": {
         "operationId": "followers_me_list",
-        "description": "Liste des followers",
-        "parameters": [],
+        "description": "Liste des followers (utilisateurs suivant l'utilisateur actuel)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1,
+            "description": "Numéro de la page"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20,
+            "description": "Nombre d'éléments par page"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Liste des followers"
@@ -177,117 +192,26 @@
       },
       "parameters": []
     },
-    "/followers/requests": {
+    "/followers/following": {
       "get": {
-        "operationId": "followers_requests_list",
-        "description": "Récupère les demandes de followers en cours",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Demandes de followers"
+        "operationId": "followers_following_list",
+        "description": "Liste des suivis (utilisateurs suivis par l'utilisateur actuel)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1,
+            "description": "Numéro de la page"
           },
-          "401": {
-            "description": "Non authentifié"
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20,
+            "description": "Nombre d'éléments par page"
           }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": []
-    },
-    "/followers/{id}/accept": {
-      "post": {
-        "operationId": "followers_accept_create",
-        "description": "Accepte une demande de suivi",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Demande acceptée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Demande non trouvée"
-          }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/followers/{id}/refuse": {
-      "post": {
-        "operationId": "followers_refuse_create",
-        "description": "Refuse une demande de suivi",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Demande refusée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Demande non trouvée"
-          }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/followers/{id}/request": {
-      "post": {
-        "operationId": "followers_request_create",
-        "description": "Envoie une demande de suivi",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Demande envoyée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
-          }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/following/me": {
-      "get": {
-        "operationId": "following_me_list",
-        "description": "Liste des suivis",
-        "parameters": [],
+        ],
         "responses": {
           "200": {
             "description": "Liste des utilisateurs suivis"
@@ -302,9 +226,75 @@
       },
       "parameters": []
     },
-    "/following/{id}/unfollow": {
+    "/followers/pending": {
+      "get": {
+        "operationId": "followers_pending_list",
+        "description": "Demandes de suivi en attente",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1,
+            "description": "Numéro de la page"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20,
+            "description": "Nombre d'éléments par page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Demandes de suivi en attente"
+          },
+          "401": {
+            "description": "Non authentifié"
+          }
+        },
+        "tags": [
+          "Followers"
+        ]
+      },
+      "parameters": []
+    },
+    "/followers/{user_id}/follow": {
+      "post": {
+        "operationId": "followers_follow_create",
+        "description": "Envoyer une demande de suivi (auto-acceptée pour profil public, en attente pour profil privé)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Suivi créé"
+          },
+          "400": {
+            "description": "Requête invalide"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "404": {
+            "description": "Utilisateur non trouvé"
+          }
+        },
+        "tags": [
+          "Followers"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/{user_id}/unfollow": {
       "delete": {
-        "operationId": "following_unfollow_delete",
+        "operationId": "followers_unfollow_delete",
         "description": "Se désabonner d'un utilisateur",
         "parameters": [],
         "responses": {
@@ -324,7 +314,65 @@
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/{user_id}/accept": {
+      "post": {
+        "operationId": "followers_accept_create",
+        "description": "Accepter une demande de suivi",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Demande acceptée"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "404": {
+            "description": "Demande non trouvée"
+          }
+        },
+        "tags": [
+          "Followers"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/{user_id}/refuse": {
+      "post": {
+        "operationId": "followers_refuse_create",
+        "description": "Refuser une demande de suivi",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Demande refusée"
+          },
+          "401": {
+            "description": "Non authentifié"
+          },
+          "404": {
+            "description": "Demande non trouvée"
+          }
+        },
+        "tags": [
+          "Followers"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
           "in": "path",
           "required": true,
           "type": "string"

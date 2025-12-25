@@ -44,7 +44,8 @@ class FollowerService:
             raise NotFoundError(f"User {followed_id} not found")
         
         # Determine initial status based on privacy
-        if followed_user.profile.privacy == 'public':
+        # privacy=True means public, privacy=False means private
+        if followed_user.profile.privacy == True:
             status = 'accepted'
         else:
             status = 'pending'
@@ -118,12 +119,12 @@ class FollowerService:
     
     @staticmethod
     @transaction.atomic
-    def reject_follow_request(
+    def refuse_follow_request(
         followed_id: str,
         follower_id: str,
         ip_address: Optional[str] = None
     ) -> None:
-        """Reject a follow request."""
+        """Refuse a follow request."""
         follow = FollowRepository.get_follow(follower_id, followed_id)
         if not follow:
             raise NotFoundError("Follow request not found")
@@ -131,13 +132,13 @@ class FollowerService:
         if follow.status != 'pending':
             raise ValidationError("Follow request is not pending")
         
-        # Update status to rejected
-        FollowRepository.update_status(follower_id, followed_id, 'rejected')
+        # Update status to refused
+        FollowRepository.update_status(follower_id, followed_id, 'refused')
         
         # Audit log
         AuditLogRepository.create(
             user_id=followed_id,
-            action_type='follow_rejected',
+            action_type='follow_refused',
             resource_type='user',
             resource_id=follower_id,
             ip_address=ip_address
@@ -146,12 +147,13 @@ class FollowerService:
     @staticmethod
     def get_followers(user_id: str, page: int = 1, page_size: int = 20) -> List[User]:
         """Get list of followers."""
-        return FollowRepository.get_followers(user_id, page, page_size)
+        # Default to accepted followers unless caller specifies otherwise
+        return FollowRepository.get_followers(user_id=user_id, status='accepted', page=page, page_size=page_size)
     
     @staticmethod
     def get_following(user_id: str, page: int = 1, page_size: int = 20) -> List[User]:
         """Get list of users being followed."""
-        return FollowRepository.get_following(user_id, page, page_size)
+        return FollowRepository.get_following(user_id=user_id, status='accepted', page=page, page_size=page_size)
     
     @staticmethod
     def get_pending_requests(user_id: str, page: int = 1, page_size: int = 20) -> List[Follow]:

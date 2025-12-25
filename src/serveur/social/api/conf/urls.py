@@ -58,9 +58,9 @@ def _get_schema_view():
 
     return get_schema_view(
         openapi.Info(
-            title="Demperm Social API",
-            default_version='v1',
-            description="API REST pour réseau social politique local",
+            title="Social API",
+            default_version='v1.0.0',
+            description="API du serveur social Demperm",
             terms_of_service="https://www.example.com/terms/",
             contact=openapi.Contact(email="contact@example.com"),
             license=openapi.License(name="MIT License"),
@@ -84,7 +84,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API v1
-    path('api/v1/auth/', include('apps.custom_auth.urls')),
     path('api/v1/users/', include('apps.users.urls')),
     path('api/v1/domains/', include('apps.domains.urls')),
     path('api/v1/forums/', include('apps.forums.urls')),
@@ -94,7 +93,6 @@ urlpatterns = [
     path('api/v1/comments/', include('apps.comments.urls')),
     path('api/v1/likes/', include('apps.likes.urls')),
     path('api/v1/followers/', include('apps.followers.urls')),
-    path('api/v1/following/', include('apps.followers.urls')),  # Alias
     path('api/v1/tags/', include('apps.tags.urls')),
     path('api/v1/messages/', include('apps.custom_messages.urls')),
     path('api/v1/reports/', include('apps.reports.urls')),
