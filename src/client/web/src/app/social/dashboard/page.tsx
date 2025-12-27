@@ -1,5 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
-import { getProfileSelf } from '../../../domains/social/api'
+import { useNavigate } from 'react-router-dom'
+import { apiClient, ApiHttpError } from '../../../domains/vote/api/apiClient'
+import { clearCredentials, getCredentials, getUser, setUser } from '../../../shared/auth'
 import { ProfileHeader } from '../../../components/composite/ProfileHeader'
 import { ProfileBio } from '../../../components/composite/ProfileBio'
 import { PreferencesPanel } from '../../../components/composite/PreferencesPanel'
@@ -16,15 +18,78 @@ type ProfileInfoItem = { label: InfoField; value: string }
 type Membership = { id: string; title: string; start: string; end?: string }
 type PostItem = { id: string; title: string; excerpt: string; createdAt: string; comments: number; hasAttachments: boolean }
 
+type FeedPost = {
+  id: string
+  authorId: string
+  authorUsername: string
+  title: string
+  excerpt: string
+  createdAt: string
+  likeCount: number
+  commentCount: number
+}
+
+type ApiUserPost = {
+  post_id: string
+  author_id: string
+  author_username: string
+  subforum_id: string | null
+  title: string
+  content: string
+  like_count: number
+  comment_count: number
+  created_at: string
+}
+
+type ApiFeedPost = {
+  post_id: string
+  author_id: string
+  author_username: string
+  subforum_id: string | null
+  title: string
+  content: string
+  like_count: number
+  comment_count: number
+  created_at: string
+}
+
+type ApiUserSearchResult = {
+  user_id: string
+  username: string
+  display_name: string | null
+  profile_picture_url: string | null
+}
+
+type ApiUserPayload = {
+  user_id: string
+  email: string
+  username: string
+  is_admin: boolean
+  is_banned: boolean
+  created_at: string
+  last_login_at: string | null
+  profile: {
+    display_name: string
+    profile_picture_url: string | null
+    bio: string | null
+    location: string | null
+    privacy: 'public' | 'private'
+  }
+  settings: {
+    email_notifications: boolean
+    language: string
+  }
+}
+
 /**
- * Page tableau de bord social (profil personnel mocké).
- * Charge le profil via le mock, permet de simuler édition et affichage.
+ * Page tableau de bord social (profil personnel connecté au backend).
  */
 export default function SocialDashboardPage() {
   const [preferences, setPreferences] = useState<Preference[]>([])
   const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
+   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([])
   const [profile, setProfile] = useState({
     fullName: '',
     role: '',
@@ -33,48 +98,139 @@ export default function SocialDashboardPage() {
     bio: ''
   })
   const [stats, setStats] = useState<{ label: string; value: string }[]>([])
+  const [isFeedLoading, setIsFeedLoading] = useState(false)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState<ApiUserSearchResult[]>([])
+  const [isUserSearchLoading, setIsUserSearchLoading] = useState(false)
+  const [userSearchError, setUserSearchError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isMembershipModalOpen, setMembershipModalOpen] = useState(false)
   const [newMembership, setNewMembership] = useState({ title: '', start: '', end: '' })
+  const navigate = useNavigate()
 
   useEffect(() => {
-    async function loadProfile() {
-      const data = await getProfileSelf('user-main')
-      setPreferences(buildPreferences(data.preferences))
-      setInfoItems(buildInfoItems(data.user))
-      setMemberships(
-        data.memberships.map((membership) => ({
-          id: membership.id,
-          title: membership.title,
-          start: membership.start_date,
-          end: membership.end_date
-        }))
-      )
-      setPosts(
-        data.posts.map((post) => ({
-          id: post.id,
-          title: post.titre,
-          excerpt: post.extrait,
-          createdAt: post.created_at,
-          comments: post.nb_commentaires,
-          hasAttachments: post.has_attachments
-        }))
-      )
-      setStats([
-        { label: 'Abonnés', value: data.stats.nb_abonnes.toString() },
-        { label: 'Abonnements', value: data.stats.nb_abonnements.toString() }
-      ])
-      setProfile({
-        fullName: `${data.user.first_name} ${data.user.last_name}`,
-        role: data.user.role,
-        location: data.user.zone_impliquee,
-        avatarUrl: data.user.avatar_url,
-        bio: data.user.bio
-      })
+    // Hydrater avec un éventuel payload backend déjà stocké
+    const stored = getUser<ApiUserPayload>()
+    if (stored && stored.profile) {
+      applyUserPayload(stored)
     }
 
-    loadProfile()
+    // Puis tenter de récupérer /users/me pour synchroniser avec le backend réel
+    async function loadUserFromBackend() {
+      const { token } = getCredentials()
+      if (!token) return
+
+      try {
+        const payload = await apiClient.get<ApiUserPayload | null>('/api/v1/users/me/')
+
+        if (!payload) {
+          navigate('/profil/create', { replace: true })
+          return
+        }
+
+        setUser(payload)
+        applyUserPayload(payload)
+
+        // Charger les posts de l'utilisateur pour la section "Posts" du profil
+        await Promise.all([loadUserPosts(), loadFeed()])
+      } catch (error) {
+        if (error instanceof ApiHttpError && error.status === 403) {
+          clearCredentials()
+          navigate('/login', { replace: true })
+          return
+        }
+        // eslint-disable-next-line no-console
+        console.warn('Erreur lors du chargement de /users/me', error)
+      }
+    }
+
+    void loadUserFromBackend()
   }, [])
+
+  async function loadUserPosts() {
+    try {
+      const query = apiClient.buildQueryString({ page: 1, page_size: 10 })
+      const data = await apiClient.get<ApiUserPost[]>(`/api/v1/posts/me/${query}`)
+
+      const mapped: PostItem[] = data.map((post) => ({
+        id: post.post_id,
+        title: post.title,
+        excerpt: post.content,
+        createdAt: new Date(post.created_at).toLocaleDateString(),
+        comments: post.comment_count,
+        hasAttachments: false,
+      }))
+
+      setPosts(mapped)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du chargement de /posts/me', error)
+    }
+  }
+
+  async function loadFeed() {
+    try {
+      setIsFeedLoading(true)
+      const query = apiClient.buildQueryString({ page: 1, page_size: 20 })
+      const data = await apiClient.get<ApiFeedPost[]>(`/api/v1/posts/feed/${query}`)
+
+      const mapped: FeedPost[] = data.map((post) => ({
+        id: post.post_id,
+        authorId: post.author_id,
+        authorUsername: post.author_username,
+        title: post.title,
+        excerpt: post.content,
+        createdAt: new Date(post.created_at).toLocaleDateString(),
+        likeCount: post.like_count,
+        commentCount: post.comment_count,
+      }))
+
+      setFeedPosts(mapped)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors du chargement du feed', error)
+    } finally {
+      setIsFeedLoading(false)
+    }
+  }
+
+  function applyUserPayload(payload: ApiUserPayload) {
+    const fullName = payload.profile.display_name || payload.username
+    const location = payload.profile.location || ''
+    const bio = payload.profile.bio || ''
+
+    setProfile((prev) => ({
+      ...prev,
+      fullName,
+      role: payload.is_admin ? 'Administrateur' : 'Citoyen',
+      location,
+      avatarUrl: payload.profile.profile_picture_url || prev.avatarUrl,
+      bio,
+    }))
+
+    setInfoItems([
+      { label: 'Prénom', value: fullName.split(' ')[0] ?? '' },
+      { label: 'Nom', value: fullName.split(' ').slice(1).join(' ') ?? '' },
+      { label: 'Pseudo', value: payload.username },
+      { label: 'Email', value: payload.email },
+      { label: 'Zone impliquée', value: location },
+      { label: 'Date de naissance', value: '' },
+    ])
+
+    setStats([
+      { label: 'Créé le', value: new Date(payload.created_at).toLocaleDateString() },
+    ])
+  }
 
   function handlePreferenceChange(id: string, value: string) {
     setPreferences((prev) => prev.map((pref) => (pref.id === id ? { ...pref, value } : pref)))
@@ -134,6 +290,37 @@ export default function SocialDashboardPage() {
     setMembershipModalOpen(true)
   }, [])
 
+  async function handleUserSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const query = userSearchQuery.trim()
+    if (!query) return
+
+    setUserSearchError(null)
+    setIsUserSearchLoading(true)
+    try {
+      const qs = apiClient.buildQueryString({ query, page: 1, page_size: 10 })
+      const data = await apiClient.get<ApiUserSearchResult[]>(`/api/v1/users/search/${qs}`)
+      setUserSearchResults(data)
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 403) {
+        clearCredentials()
+        navigate('/login', { replace: true })
+        return
+      }
+      const message = error instanceof Error ? error.message : 'Erreur lors de la recherche'
+      setUserSearchError(message)
+      // eslint-disable-next-line no-console
+      console.warn('Erreur lors de la recherche utilisateurs', error)
+    } finally {
+      setIsUserSearchLoading(false)
+    }
+  }
+
+  const handleLogout = useCallback(() => {
+    clearCredentials()
+    navigate('/login', { replace: true })
+  }, [navigate])
+
   return (
     <div className="space-y-6">
       <ProfileHeader
@@ -142,11 +329,13 @@ export default function SocialDashboardPage() {
         location={profile.location}
         avatarUrl={profile.avatarUrl}
         stats={stats}
-        editable
-        onEdit={toggleEditing}
-        editLabel={isEditing ? 'Valider les changements' : 'Mettre à jour le profil'}
+        editable={false}
+        onEdit={undefined}
+        editLabel={undefined}
         onPhotoChange={handleAvatarChange}
-        photoEditable={isEditing}
+        photoEditable={false}
+        showLogout
+        onLogout={handleLogout}
       />
 
       <div className="grid gap-6 md:grid-cols-12">
@@ -209,11 +398,81 @@ export default function SocialDashboardPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Fil d'actualité</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isFeedLoading ? (
+                <p className="text-sm text-muted">Chargement du fil…</p>
+              ) : feedPosts.length === 0 ? (
+                <EmptyCard />
+              ) : (
+                <div className="space-y-3">
+                  {feedPosts.map((post) => (
+                    <article key={post.id} className="rounded-2xl border border-border bg-background-soft px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted">
+                        <p>{post.createdAt}</p>
+                        <p>u/{post.authorUsername}</p>
+                      </div>
+                      <h3 className="text-base font-semibold text-foreground">{post.title}</h3>
+                      <p className="text-sm text-muted">{post.excerpt}</p>
+                      <p className="pt-1 text-xs text-muted">
+                        👍 {post.likeCount} • 💬 {post.commentCount}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6 md:col-span-3">
           <PreferencesPanel items={preferences} isEditing={isEditing} onChange={handlePreferenceChange} />
           <InfoCard title="Infos" items={infoItems} isEditing={isEditing} onChange={handleInfoChange} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rechercher des personnes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <form className="space-y-2" onSubmit={handleUserSearchSubmit}>
+                <Input
+                  label="Nom ou pseudo"
+                  placeholder="ex : alice, bob42"
+                  value={userSearchQuery}
+                  onChange={(event) => setUserSearchQuery(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  disabled={!userSearchQuery.trim() || isUserSearchLoading}
+                >
+                  {isUserSearchLoading ? 'Recherche…' : 'Rechercher'}
+                </Button>
+              </form>
+              {userSearchError && <p className="text-xs text-danger">{userSearchError}</p>}
+              {userSearchResults.length > 0 && (
+                <ul className="space-y-2 text-sm">
+                  {userSearchResults.map((user) => (
+                    <li
+                      key={user.user_id}
+                      className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3 py-2 hover:bg-background-soft"
+                      onClick={() => navigate(`/profil/public?userId=${user.user_id}`)}
+                    >
+                      <span className="font-medium text-foreground">
+                        {user.display_name || user.username}
+                      </span>
+                      <span className="text-xs text-muted">Voir le profil</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -275,59 +534,3 @@ function getInfoValue(items: ProfileInfoItem[], label: InfoField) {
   return items.find((item) => item.label === label)?.value ?? ''
 }
 
-/** Construit la liste de préférences à partir du payload API mocké. */
-function buildPreferences(preferences: { statut_compte: string; statut_vote: string; bloquer_les_voix: boolean }): Preference[] {
-  return [
-    {
-      id: 'pref-1',
-      label: 'Statut du compte',
-      value: preferences.statut_compte,
-      editable: true,
-      options: [
-        { label: 'Public', value: 'Public' },
-        { label: 'Privé', value: 'Privé' }
-      ]
-    },
-    {
-      id: 'pref-2',
-      label: 'Statut vote',
-      value: preferences.statut_vote,
-      editable: true,
-      options: [
-        { label: 'Public', value: 'Public' },
-        { label: 'Privé', value: 'Privé' }
-      ]
-    },
-    {
-      id: 'pref-3',
-      label: 'Bloquer les voix',
-      value: preferences.bloquer_les_voix ? 'Oui' : 'Non',
-      editable: true,
-      options: [
-        { label: 'Non', value: 'Non' },
-        { label: 'Oui', value: 'Oui' }
-      ]
-    },
-    { id: 'pref-4', label: 'Gérer mes communautés', value: 'Accès rapide', actionHref: '/forum' },
-    { id: 'pref-5', label: 'Gérer mes amitiés', value: 'Ouvert', actionHref: '/messages' }
-  ]
-}
-
-/** Construit les infos affichables (fiche info) depuis un user mock. */
-function buildInfoItems(user: {
-  first_name: string
-  last_name: string
-  pseudo: string
-  birth_date: string
-  email: string
-  zone_impliquee: string
-}): ProfileInfoItem[] {
-  return [
-    { label: 'Prénom', value: user.first_name },
-    { label: 'Nom', value: user.last_name },
-    { label: 'Pseudo', value: user.pseudo },
-    { label: 'Date de naissance', value: user.birth_date },
-    { label: 'Email', value: user.email },
-    { label: 'Zone impliquée', value: user.zone_impliquee }
-  ]
-}

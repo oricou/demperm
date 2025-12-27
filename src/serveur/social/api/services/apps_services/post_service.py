@@ -99,12 +99,25 @@ class PostService:
             if BlockRepository.is_blocked(viewer_id, str(post.user_id)) or \
                BlockRepository.is_blocked(str(post.user_id), viewer_id):
                 raise PermissionDeniedError("Cannot view post from blocked user")
-            
-            # Check privacy
-            if post.user.profile.privacy == 'private':
+
+            # Check privacy: support both boolean and string representations
+            try:
+                privacy_val = post.user.profile.privacy
+            except Exception:
+                privacy_val = None
+
+            is_private = False
+            if isinstance(privacy_val, bool):
+                # In some schemas True==public, False==private
+                is_private = privacy_val is False
+            elif isinstance(privacy_val, str):
+                # 'private' or 'public'
+                is_private = privacy_val.lower() == 'private'
+
+            if is_private:
                 # Check if following
                 follow = FollowRepository.get_follow(viewer_id, str(post.user_id))
-                if not follow or follow.status != 'accepted':
+                if not follow or getattr(follow, 'status', None) != 'accepted':
                     raise PermissionDeniedError("Cannot view private user's post")
         
         return post
@@ -126,14 +139,14 @@ class PostService:
         
         # Check permission
         user = UserRepository.get_by_id(user_id)
-        if str(post.user_id) != user_id and not user.is_admin:
+        if str(post.user.user_id) != str(user_id) and not user.is_admin:
             raise PermissionDeniedError("Not authorized to delete this post")
         
         # Delete post
         PostRepository.delete(post_id)
         
         # Decrement subforum post count
-        SubforumRepository.decrement_post_count(str(post.subforum_id))
+        SubforumRepository.decrement_post_count(str(post.subforum.subforum_id))
         
         # Audit log
         AuditLogRepository.create(
@@ -224,4 +237,9 @@ class PostService:
         - Excludes blocked users
         """
         return PostRepository.get_discover(page, page_size)
+
+    @staticmethod
+    def get_user_posts(user_id: str, page: int = 1, page_size: int = 20) -> List[Post]:
+        """Get posts authored by a specific user (for their own profile)."""
+        return PostRepository.get_by_user(user_id, page, page_size)
 

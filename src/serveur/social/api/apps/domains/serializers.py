@@ -26,4 +26,5 @@ class CreateSubforumSerializer(serializers.Serializer):
     """Serializer for creating a subforum."""
     name = serializers.CharField(max_length=100)
     description = serializers.CharField(max_length=500)
+    parent_subforum_id = serializers.UUIDField(required=False, allow_null=True)
 

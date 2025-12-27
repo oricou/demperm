@@ -7,3 +7,5 @@ drf-spectacular==0.29.0
 django-cors-headers==4.9.0
 python-dotenv==1.2.1
 firebase-admin==6.1.0
+python-dotenv
+

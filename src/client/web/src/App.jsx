@@ -5,6 +5,7 @@ import Login from './app/auth/login'
 import { AppShell } from './components/layout/AppShell'
 import ProfileSelfPage from './app/social/dashboard/page'
 import PublicProfilePage from './app/social/users/id'
+import CreateProfilePage from './app/social/users/create'
 import VoteDashboardPage from './app/vote/page'
 import ForumHomePage from './app/social/groups'
 import MessagesPage from './app/social/mailbox'
@@ -34,6 +35,7 @@ function App() {
       <Route path="/auth/login" element={<Login />} />
       <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
         <Route path="/profil" element={<ProfileSelfPage />} />
+        <Route path="/profil/create" element={<CreateProfilePage />} />
         <Route path="/profil/public" element={<PublicProfilePage />} />
         <Route path="/vote" element={<VoteDashboardPage />} />
         <Route path="/forum" element={<ForumHomePage />} />

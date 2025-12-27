@@ -1,4 +1,5 @@
 import datetime
+import json
 from app.neo4j_config import get_driver
 from uuid import *
 from typing import List
@@ -155,13 +156,14 @@ class VoteRepository:
     @staticmethod
     def _find_votes_by_voter_tx(tx, voter_id: str, domain: str | None) -> list[dict]:
         query = """
-            MATCH (voter:User {id: $voterId})-[rel:VOTED]->(target:User)
+            MATCH (voter:User {id: $voterId})-[rel:VOTED {current: true}]->(target:User)
             WHERE $domain IS NULL OR rel.domain = $domain
-            RETURN rel.id        AS id,
+            RETURN id(rel)       AS id,
                    voter.id      AS voterId,
                    target.id     AS targetUserId,
                    rel.domain    AS domain,
-                   rel.createdAt AS createdAt
+                   rel.createdAt AS createdAt,
+                   voter.publishVotes AS publishVotes
             ORDER BY rel.createdAt DESC
             """
 
@@ -195,8 +197,6 @@ class VoteRepository:
         Retourne un dict:
         {
           "userId": str,
-          "total": int,
-          "byDomain": { str: int },
           "usersByDomain": { str: [str] }
         }
         """
@@ -211,10 +211,9 @@ class VoteRepository:
     @staticmethod
     def _get_received_votes_summary_tx(tx, user_id: str, domain: str | None) -> dict:
         query = """
-                MATCH (voter:User)-[rel:VOTED {processed: true, valid: true}]->(target:User {id: $userId})
+                MATCH (voter:User)-[rel:VOTED {current: true}]->(target:User {id: $userId})
                 WHERE $domain IS NULL OR rel.domain = $domain
                 RETURN rel.domain                 AS domain,
-                       sum(rel.count)             AS count,
                        collect(DISTINCT voter.id) AS voters
             """
 
@@ -224,26 +223,19 @@ class VoteRepository:
             domain=domain,
         )
 
-        by_domain: dict[str, int] = {}
         users_by_domain: dict[str, list[str]] = {}
-        total = 0
 
         for record in records:
             domain_key = record["domain"]
             if domain_key is None:
                 continue
 
-            count = record["count"] or 0
             voters = record["voters"] or []
 
-            by_domain[domain_key] = int(count)
             users_by_domain[domain_key] = [str(v) for v in voters]
-            total += int(count)
 
         return {
             "userId": str(user_id),
-            "total": total,
-            "byDomain": by_domain,
             "usersByDomain": users_by_domain,
         }
 
@@ -767,73 +759,266 @@ class VoteRepository:
                 count=count
             )
 
-    def get_daily_votes_to_user(user_id: uuid4) -> List:
-        drv = get_driver()
-        with drv.session() as session:
-            return session.execute_read(VoteRepository._get_daily_votes_to_user_tx, user_id)
+
+    # -------------------- MISE A JOUR DES STATS QUOTIDIENNES --------------------
 
     @staticmethod
-    def _get_daily_votes_to_user_tx(tx, user_id: str) -> List:
-        res = tx.run(
-            """
-            MATCH (:User)-[vote:VOTED]->(dst:User {id: $dst_id})
-            RETURN date(vote.created_at) AS date, sum(vote.count) AS count
-            ORDER BY date DESC
-            """,
-            dst_id=user_id
-        )
-        return list(res)
+    def append_daily_stats(date: datetime.date | None = None) -> int:
+        """
+        Pour chaque User, ajoute dans la map `stats` une entrée dont la clé est la date (YYYY-MM-DD)
+        et la valeur est le nombre de voix reçues ce jour :
+          - si l'utilisateur a au moins une relation entrante VOTED current=true avec cycle=true,
+            on prend la valeur `count` de l'une de ces relations (elles ont la même valeur pour un cycle),
+          - sinon on prend la somme des `count` de toutes les relations entrantes current=true.
+        Retourne le nombre d'utilisateurs mis à jour.
+        """
+        if date is None:
+            date = datetime.date.today()
+        date_str = date.isoformat()
+
+        driver = get_driver()
+        with driver.session() as session:
+            return session.execute_write(VoteRepository._append_daily_stats_tx, date_str)
 
     @staticmethod
-    def get_monthly_votes_to_user(user_id: uuid4) -> List:
-        drv = get_driver()
-        with drv.session() as session:
-            return session.execute_read(VoteRepository._get_monthly_votes_to_user_tx, user_id)
-
-    def _get_monthly_votes_to_user_tx(tx, user_id: str) -> List:
+    def _append_daily_stats_tx(tx, date_str: str) -> int:
         res = tx.run(
             """
-            MATCH (:User)-[vote:VOTED]->(dst:User {id: '4'})
-            RETURN date(vote.created_at).year as year, date(vote.created_at).month AS month, sum(vote.count) AS count
-            ORDER BY year, month desc
+            MATCH (u:User)
+            OPTIONAL MATCH (u)<-[r:VOTED {current: true}]-(:User)
+            WITH u, collect(r) AS rels
+            UNWIND [d IN [x IN rels | x.domain] WHERE d IS NOT NULL] AS domain
+            WITH u, domain, [x IN rels WHERE x.domain = domain] AS relsByDomain
+            WITH u, domain,
+                 [x IN relsByDomain WHERE coalesce(x.cycle, false) = true] AS cycles,
+                 reduce(total = 0, y IN relsByDomain | total + coalesce(y.count, 0)) AS totalSum
+            WITH u, domain,
+                 CASE WHEN size(cycles) > 0 THEN cycles[0].count ELSE totalSum END AS votes
+            WITH u, collect([domain, votes]) AS entries
+            WITH u, apoc.map.fromPairs(entries) AS domainMap
+            SET u.stats = apoc.convert.toJson(
+                apoc.map.setKey(
+                    apoc.convert.fromJsonMap(coalesce(u.stats, '{}')),
+                    $dateStr,
+                    domainMap
+                )
+            )
+            WITH count(u) AS updated
+            MERGE (m:StatsMeta {id: 'daily_stats'})
+            SET m.lastDate = $dateStr
+            RETURN updated
             """,
-            dst_id=user_id
-        )
-        return list(res)
+            dateStr=date_str,
+        ).single()
+
+        return int(res["updated"]) if res is not None else 0
+    
+
+    # -------------------- RECUPERATION DES STATS DE VOTES --------------------
+
+    def get_daily_votes_to_user(user_id: uuid4, days: int = 30) -> tuple[list[dict], bool]:
+        """
+        Retourne une liste d'objets { date: 'YYYY-MM-DD', count: int, byDomain: {domain:count} }
+        triée par date décroissante, limitée à `days`.
+        Lit la propriété u.stats (JSON string) et la parse côté application.
+        """
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_daily_votes_to_user_tx, user_id, days)
 
     @staticmethod
-    def get_chart_for_domain(domain: str) -> List:
+    def _get_daily_votes_to_user_tx(tx, user_id: str, days: int) -> tuple[list[dict], bool]:
+        meta = tx.run("MATCH (m:StatsMeta {id: 'daily_stats'}) RETURN m.lastDate AS lastDate").single()
+        last_date_str = meta["lastDate"] if meta and meta["lastDate"] is not None else None
+        try:
+            last_date = datetime.date.fromisoformat(last_date_str) if last_date_str else datetime.date.today()
+        except Exception:
+            last_date = datetime.date.today()
+        
+        rec = tx.run(
+            """
+            MATCH (u:User {id: $userId})
+            RETURN u.stats AS stats, u.publishVotes AS publishVotes
+            """,
+            userId=user_id
+        ).single()
+        stats_json = rec["stats"] if rec is not None else None
+        if not stats_json:
+            return []
+
+        try:
+            stats_map = json.loads(stats_json)
+        except Exception:
+            return []
+
+        cutoff = last_date - datetime.timedelta(days=days-1)
+        # domain -> list of {date, count}
+        domain_series: dict[str, list[dict]] = {}
+
+        for date_str, domain_map in stats_map.items():
+            try:
+                d = datetime.date.fromisoformat(date_str)
+            except Exception:
+                continue
+            if d < cutoff or d > last_date:
+                continue
+            if not isinstance(domain_map, dict):
+                continue
+            for dom, v in domain_map.items():
+                try:
+                    val = int(v)
+                except Exception:
+                    val = 0
+                if dom not in domain_series:
+                    domain_series[dom] = []
+                domain_series[dom].append({"date": date_str, "count": val})
+
+        # trier chaque série par date décroissante
+        result: list[dict] = []
+        for dom, series in domain_series.items():
+            series.sort(key=lambda e: e["date"], reverse=True)
+            result.append({"domain": dom, "series": series})
+
+        # trier domaines par somme décroissante (utile pour présentation)
+        result.sort(key=lambda entry: sum(item["count"] for item in entry["series"]), reverse=True)
+        return (result, rec["publishVotes"] if rec is not None else False)
+
+    @staticmethod
+    def get_monthly_votes_to_user(user_id: str, months: int = 12) -> List[dict]:
+        """
+        Agrège les valeurs journalières en mois (année, mois, count) et retourne
+        une liste triée par (year, month) décroissant limitée à `months`.
+        """
         drv = get_driver()
         with drv.session() as session:
-            return session.execute_read(VoteRepository._get_chart_for_domain_tx, domain)
+            return session.execute_read(VoteRepository._get_monthly_votes_to_user_tx, user_id, months)
 
-    def _get_chart_for_domain_tx(tx, domain: str) -> List:
+    @staticmethod
+    def _get_monthly_votes_to_user_tx(tx, user_id: str, months: int) -> List[dict]:
+        meta = tx.run("MATCH (m:StatsMeta {id: 'daily_stats'}) RETURN m.lastDate AS lastDate").single()
+        last_date_str = meta["lastDate"] if meta and meta["lastDate"] is not None else None
+        try:
+            last_date = datetime.date.fromisoformat(last_date_str) if last_date_str else datetime.date.today()
+        except Exception:
+            last_date = datetime.date.today()
+
+        rec = tx.run(
+            """
+            MATCH (u:User {id: $userId})
+            RETURN u.stats AS stats
+            """,
+            userId=user_id
+        ).single()
+        stats_json = rec["stats"] if rec is not None else None
+        if not stats_json:
+            return []
+
+        try:
+            stats_map = json.loads(stats_json)
+        except Exception:
+            return []
+
+        monthly_per_domain: dict[str, dict[tuple[int,int], int]] = {}
+
+        for date_str, domain_map in stats_map.items():
+            try:
+                d = datetime.date.fromisoformat(date_str)
+            except Exception:
+                continue
+            if d > last_date:
+                continue
+            if not isinstance(domain_map, dict):
+                continue
+            year_month = (d.year, d.month)
+            for dom, v in domain_map.items():
+                try:
+                    val = int(v)
+                except Exception:
+                    val = 0
+                monthly_per_domain.setdefault(dom, {})
+                monthly_per_domain[dom][year_month] = monthly_per_domain[dom].get(year_month, 0) + val
+
+        # construire le résultat : pour chaque domaine une série triée (year,month) desc
+        result: list[dict] = []
+        for dom, map_ym in monthly_per_domain.items():
+            series = [
+                {"year": ym[0], "month": ym[1], "count": cnt}
+                for ym, cnt in map_ym.items()
+            ]
+            series.sort(key=lambda e: (e["year"], e["month"]), reverse=True)
+            result.append({"domain": dom, "series": series[:months]})
+
+        # trier domaines par total décroissant
+        result.sort(key=lambda entry: sum(item["count"] for item in entry["series"]), reverse=True)
+        return result
+
+    @staticmethod
+    def get_chart_for_domain(domain: str, days: int = 30) -> List[dict]:
+        """
+        Pour un domaine donné, retourne les top 10 users (sur la période `days`)
+        avec pour chacun la série journalière [{date, count}] (triée décroissante).
+        """
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_chart_for_domain_tx, domain, days)
+
+    @staticmethod
+    def _get_chart_for_domain_tx(tx, domain: str, days: int) -> List[dict]:
+        meta = tx.run("MATCH (m:StatsMeta {id: 'daily_stats'}) RETURN m.lastDate AS lastDate").single()
+        last_date_str = meta["lastDate"] if meta and meta["lastDate"] is not None else None
+        try:
+            last_date = datetime.date.fromisoformat(last_date_str) if last_date_str else datetime.date.today()
+        except Exception:
+            last_date = datetime.date.today()
+
+        # Récupère tous les users qui ont une propriété stats
         res = tx.run(
             """
-            MATCH (:User {domain: $domain})-[v:VOTED]->(u:User {domain: $domain})
-            WHERE NOT EXISTS ((u)-[:VOTED]->())
-            AND v.created_at >= datetime() - duration({days:30})
-            WITH u.id AS userId, date(v.created_at) AS day, sum(v.count) AS votes_per_day
-            ORDER BY day desc
-            WITH userId, collect({date: day, count: votes_per_day}) AS votes
-            RETURN userId, votes
-            """,
-            domain=domain
+            MATCH (u:User)
+            WHERE u.stats IS NOT NULL
+            RETURN u.id AS userId, u.stats AS stats
+            """
         )
 
-        returned = []
-        for user_chart in res:
-            votes = []
-            for v in user_chart['votes']:
-                votes.append({
-                    'date': str(v['date']),
-                    'count': v['count']
-                })
-            returned.append({
-                'userId': user_chart['userId'],
-                'votes': votes
-            })
-        return returned
+        cutoff = last_date - datetime.timedelta(days=days-1)
+        per_user = []
+        for rec in res:
+            user_id = rec["userId"]
+            stats_json = rec["stats"]
+            try:
+                stats_map = json.loads(stats_json)
+            except Exception:
+                continue
+
+            day_entries = []
+            total = 0
+            for date_str, domain_map in stats_map.items():
+                try:
+                    d = datetime.date.fromisoformat(date_str)
+                except Exception:
+                    continue
+                # n'utiliser que les dates entre cutoff et last_date
+                if d < cutoff or d > last_date:
+                    continue
+                count_for_domain = 0
+                if isinstance(domain_map, dict):
+                    val = domain_map.get(domain)
+                    try:
+                        count_for_domain = int(val) if val is not None else 0
+                    except Exception:
+                        count_for_domain = 0
+                if count_for_domain > 0:
+                    day_entries.append({"date": date_str, "count": count_for_domain})
+                    total += count_for_domain
+
+            if total > 0:
+                # trier day_entries par date desc
+                day_entries.sort(key=lambda e: e["date"], reverse=True)
+                per_user.append({"userId": user_id, "total": total, "votes": day_entries})
+
+        # trier par total desc et garder top 10
+        per_user.sort(key=lambda u: u["total"], reverse=True)
+        return per_user[:10]
 
     @staticmethod
     def get_all_domains() -> List:
@@ -844,10 +1029,38 @@ class VoteRepository:
     @staticmethod
     def _get_all_domains_tx(tx) -> List:
         res = tx.run(
-            """
-            MATCH (u:User)
-            WHERE u.domain IS NOT NULL
-            RETURN DISTINCT u.domain AS domain
-            """
+            "MATCH ()-[r:VOTED]->() WHERE r.current = true RETURN DISTINCT r.domain AS domain"
         )
         return [rec['domain'] for rec in res]
+    
+    @staticmethod
+    def get_last_update() -> str:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_last_update_tx)
+
+    @staticmethod
+    def _get_last_update_tx(tx) -> str:
+        res = tx.run(
+            "MATCH (m:StatsMeta {id: 'daily_stats'}) RETURN m.lastDate AS lastDate"
+        ).single()
+        return res['lastDate'] if res and res['lastDate'] is not None else datetime.date.today().isoformat()
+
+    @staticmethod
+    def get_publish_votes_setting(user_id: str) -> tuple[bool, dict]:
+        drv = get_driver()
+        with drv.session() as session:
+            return session.execute_read(VoteRepository._get_publish_votes_setting_tx, user_id)
+    
+    @staticmethod
+    def _get_publish_votes_setting_tx(tx, user_id: str) -> tuple[bool, dict]:
+        res = tx.run(
+            "MATCH (u:User {id: $userId}) RETURN u.publishVotes AS publishVotes, u.stats AS stats",
+            userId=user_id
+        ).single()
+        stats_json = res['stats'] if res and res['stats'] is not None else None
+        try:
+            stats = json.loads(stats_json)
+        except Exception:
+            return res['publishVotes'] if res and res['publishVotes'] is not False else False, {}
+        return res['publishVotes'] if res and res['publishVotes'] is not False else False, stats

@@ -5,7 +5,7 @@ from django.urls import path
 from .views import (
     CreatePostView, PostDetailView, DeletePostView,
     LikePostView, UnlikePostView, PostLikesView,
-    FeedView, DiscoverView
+    MyPostsView, FeedView, DiscoverView
 )
 
 app_name = 'posts'
@@ -13,6 +13,7 @@ app_name = 'posts'
 urlpatterns = [
     # Post operations
     path('create/', CreatePostView.as_view(), name='create-post'),
+    path('me/', MyPostsView.as_view(), name='my-posts'),
     path('feed/', FeedView.as_view(), name='feed'),
     path('discover/', DiscoverView.as_view(), name='discover'),
     

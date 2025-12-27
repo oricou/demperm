@@ -32,6 +32,7 @@ class SubforumDetailView(APIView):
             subforum = DomainService.get_subforum_by_id(subforum_id)
 
             return Response({
+                'forum_id': str(subforum.forum_id_id),
                 'subforum_id': str(subforum.subforum_id),
                 'name': subforum.name,
                 'description': subforum.description,
@@ -45,6 +46,46 @@ class SubforumDetailView(APIView):
                 {'error': {'code': 'NOT_FOUND', 'message': str(e)}},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class SubforumChildrenView(APIView):
+    """List child subforums of a subforum."""
+
+    permission_classes = [IsAuthenticated, IsNotBanned]
+
+    @swagger_auto_schema(
+        operation_description="Get child subforums for a subforum",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=1),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, default=20)
+        ],
+        responses={200: SubforumSerializer(many=True)}
+    )
+    @rate_limit_general
+    def get(self, request, subforum_id):
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        try:
+            # ensure parent exists
+            DomainService.get_subforum_by_id(subforum_id)
+        except NotFoundError as e:
+            return Response({'error': {'code': 'NOT_FOUND', 'message': str(e)}}, status=status.HTTP_404_NOT_FOUND)
+
+        from db.repositories.domain_repository import SubforumRepository
+        subforums = SubforumRepository.get_by_parent_subforum(subforum_id, page, page_size)
+
+        data = [{
+            'forum_id': str(s.forum_id_id),
+            'subforum_id': str(s.subforum_id),
+            'name': s.name,
+            'description': s.description,
+            'parent_subforum_id': str(s.parent_subforum_id) if s.parent_subforum_id else None,
+            'post_count': s.post_count,
+            'created_at': s.created_at
+        } for s in subforums]
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class SubforumPostsView(APIView):
