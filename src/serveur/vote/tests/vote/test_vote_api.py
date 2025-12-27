@@ -49,9 +49,22 @@ def _validate_for_users(user_ids: list[str]):
             """,
             userIds=user_ids,
         )
-        print(records)
         for record in records:
             VoteValidationService.validate_vote(record["rel_id"])
+        VoteValidationService.finalize_daily_stats()
+
+def _set_publish_votes(user_ids: list[str], publish: bool):
+    driver = get_driver()
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (u:User)
+            WHERE u.id IN $userIds
+            SET u.publishVotes = $publish
+            """,
+            userIds=user_ids,
+            publish=publish,
+        )
 
 def test_create_vote_success_and_persisted_in_neo4j():
     client = APIClient()
@@ -282,6 +295,7 @@ def test_get_received_votes_for_user_me_simple():
     assert response2.status_code == 201
 
     _validate_for_users([voter1_id, voter2_id, target_user_id])
+    _set_publish_votes([voter1_id, voter2_id, target_user_id], publish=True)
 
     response_get = client.get(
         "/api/votes/for-user/me",
@@ -335,6 +349,7 @@ def test_get_received_votes_for_user_by_id():
     )
 
     _validate_for_users([voter1_id, voter2_id, target_user_id, caller_id])
+    _set_publish_votes([voter1_id, voter2_id, target_user_id, caller_id], publish=True)
 
     response_get = client.get(
         f"/api/votes/for-user/{target_user_id}",
@@ -386,6 +401,7 @@ def test_get_votes_by_voter_me_lists_all_votes():
     assert resp2.status_code == 201
 
     _validate_for_users([voter_id])
+    _set_publish_votes([voter_id], publish=True)
 
     response_get = client.get(
         "/api/votes/by-voter/me",
@@ -433,6 +449,7 @@ def test_get_votes_by_voter_with_domain_filter():
     assert resp2.status_code == 201
 
     _validate_for_users([voter_id, target1_id, target2_id])
+    _set_publish_votes([voter_id, target1_id, target2_id], publish=True)
 
     response_get = client.get(
         "/api/votes/by-voter/me?domain=tech",
@@ -442,6 +459,7 @@ def test_get_votes_by_voter_with_domain_filter():
 
     assert response_get.status_code == 200
     data = response_get.json()
+    print(data)
 
     assert len(data) == 1
     assert data[0]["domain"] == "tech"
@@ -489,6 +507,7 @@ def test_received_votes_chain_abc_d():
     )
 
     _validate_for_users([voter_a, voter_b, voter_c, user_d])
+    _set_publish_votes([voter_a, voter_b, voter_c, user_d], publish=True)
 
     response_get = client.get(
         f"/api/votes/for-user/{user_d}",
@@ -552,6 +571,7 @@ def test_received_votes_chain_cross_domain():
     )
 
     _validate_for_users([voter_a, voter_b, voter_c, user_d])
+    _set_publish_votes([voter_a, voter_b, voter_c, user_d], publish=True)
 
     response_get = client.get(
         f"/api/votes/for-user/{user_d}",

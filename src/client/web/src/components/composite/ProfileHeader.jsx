@@ -16,7 +16,9 @@ export function ProfileHeader({
   onEdit,
   editLabel,
   onPhotoChange,
-  photoEditable
+  photoEditable,
+  showLogout,
+  onLogout
 }) {
   const displayName = fullName?.trim() || 'Nom à renseigner'
   const displayRole = role?.trim() || 'Fonction à définir'
@@ -41,10 +43,15 @@ export function ProfileHeader({
           <p className="text-sm text-muted">{displayLocation}</p>
         </div>
       </div>
-      <div className="flex flex-1 flex-wrap justify-end gap-3">
+      <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
         {stats.map((stat) => (
           <StatValue key={stat.label} label={stat.label} value={stat.value} />
         ))}
+        {showLogout && (
+          <Button variant="ghost" size="sm" onClick={onLogout}>
+            Se déconnecter
+          </Button>
+        )}
       </div>
       {editable && (
         <div className="w-full border-t border-dashed border-border pt-4">

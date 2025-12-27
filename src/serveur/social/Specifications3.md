@@ -574,7 +574,7 @@ Relations de suivi entre utilisateurs.
 **Valeurs possibles pour `status` :**
 - `pending` : Demande en attente (profil private)
 - `accepted` : Demande acceptée
-- `rejected` : Demande refusée (soft delete)
+- `refused` : Demande refusée (soft delete)
 
 **Contraintes :**
 - UNIQUE(follower_id, following_id)
@@ -1692,13 +1692,13 @@ Désassigner des tags d'un post.
 ### 5.9 Followers
 
 Les endpoints existants sont conservés :
-- `GET /followers/me` - Liste des followers
-- `GET /following/me` - Liste des suivis
-- `POST /followers/{id}/request` - Envoyer demande de suivi
-- `GET /followers/requests` - Demandes en attente
+- `GET /followers/me` - Liste des followers (utilisateurs suivant l'utilisateur actuel)
+- `GET /followers/following` - Liste des suivis (utilisateurs suivis par l'utilisateur actuel)
+- `POST /followers/{id}/follow` - Envoyer demande de suivi
+- `GET /followers/pending` - Demandes en attente
 - `POST /followers/{id}/accept` - Accepter demande
 - `POST /followers/{id}/refuse` - Refuser demande
-- `DELETE /following/{id}/unfollow` - Se désabonner
+- `DELETE /followers/{id}/unfollow` - Se désabonner
 
 **Comportement selon privacy :**
 - `public` : Follow automatique (pas de demande)

@@ -1,29 +1,39 @@
 from rest_framework import serializers
 
 
-class StatsDailyField(serializers.Serializer):
+class StatsDailyPointSerializer(serializers.Serializer):
     date = serializers.DateField()
     count = serializers.IntegerField()
 
-class StatsDailySerializer(serializers.Serializer):
-    userId = serializers.CharField()
-    daily = serializers.ListField(child=StatsDailyField())
-    delta = serializers.IntegerField()
-
-class StatsMonthlyField(serializers.Serializer):
+class StatsMonthlyPointSerializer(serializers.Serializer):
     year = serializers.IntegerField()
     month = serializers.IntegerField()
     count = serializers.IntegerField()
 
+class StatsDailyDomainSerializer(serializers.Serializer):
+    domain = serializers.CharField()
+    series = StatsDailyPointSerializer(many=True)
+
+class StatsMonthlyDomainSerializer(serializers.Serializer):
+    domain = serializers.CharField()
+    series = StatsMonthlyPointSerializer(many=True)
+
+class StatsDailySerializer(serializers.Serializer):
+    userId = serializers.CharField()
+    byDomain = StatsDailyDomainSerializer(many=True)
+    monthlyByDomain = StatsMonthlyDomainSerializer(
+        many=True,
+        required=False,
+        allow_null=True
+    )
+
 class StatsMonthlySerializer(serializers.Serializer):
     userId = serializers.CharField()
-    monthly = serializers.ListField(child=StatsMonthlyField())
-    delta = serializers.IntegerField()
-
+    monthlyByDomain = StatsMonthlyDomainSerializer(many=True)
 
 class StatsChartDomainField(serializers.Serializer):
     userId = serializers.CharField()
-    votes = serializers.ListField(child=StatsDailyField())
+    votes = serializers.ListField(child=StatsDailyPointSerializer())
 
 class StatsChartSerializer(serializers.Serializer):
     domain = serializers.CharField()

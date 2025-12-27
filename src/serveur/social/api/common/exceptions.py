@@ -4,6 +4,7 @@ Custom exceptions and exception handler.
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
+import logging
 
 
 class BaseAPIException(Exception):
@@ -97,7 +98,11 @@ def custom_exception_handler(exc, context):
     
     # If response is None, it's not a DRF exception
     if response is None:
-        # Handle unexpected errors
+        # Log the unexpected exception with full traceback so it's visible
+        # in server logs during tests and debugging.
+        logging.getLogger('django').exception('Unhandled exception in request')
+
+        # Handle unexpected errors (keep generic response to clients)
         return Response(
             {
                 'error': {

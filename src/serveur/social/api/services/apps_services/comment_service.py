@@ -4,8 +4,9 @@ Comment service for comment management operations.
 from typing import Optional, List
 from django.db import transaction
 from db.repositories.post_repository import PostRepository, CommentRepository
-from db.repositories.user_repository import UserRepository
+from db.repositories.user_repository import UserRepository, FollowRepository
 from db.repositories.message_repository import AuditLogRepository
+from db.repositories.user_repository import BlockRepository
 from db.entities.post_entity import Comment
 from common.exceptions import NotFoundError, ValidationError, PermissionDeniedError
 from common.validators import Validator
@@ -43,25 +44,31 @@ class CommentService:
         post = PostRepository.get_by_id(post_id)
         if not post:
             raise NotFoundError(f"Post {post_id} not found")
-        
+
+        if BlockRepository.is_blocked(post.user.user_id,user_id):
+            raise PermissionDeniedError("Cannot comment post from a user that blocked you")
+
+        if post.user.profile.privacy is False:
+            follow = FollowRepository.get_follow(user_id, str(post.user.user_id))
+            if not follow or follow.status != 'accepted':
+                raise PermissionDeniedError("Cannot view private user's post")
         # Check parent comment if provided
         if parent_comment_id:
             parent_comment = CommentRepository.get_by_id(parent_comment_id)
             if not parent_comment:
                 raise NotFoundError(f"Parent comment {parent_comment_id} not found")
-            if str(parent_comment.post_id) != post_id:
+            if parent_comment.post.post_id != post_id:
                 raise ValidationError("Parent comment does not belong to this post")
-        
-        # Create comment
+            if BlockRepository.is_blocked(parent_comment.user.user_id,user_id):
+                raise PermissionDeniedError("Cannot reply to comment from a user that blocked you")
+
+        # Create comment (repository will handle post comment count increment)
         comment = CommentRepository.create(
             user_id=user_id,
             post_id=post_id,
             content=content,
             parent_comment_id=parent_comment_id
         )
-        
-        # Increment post comment count
-        PostRepository.increment_comment_count(post_id)
         
         # Audit log
         AuditLogRepository.create(
@@ -90,24 +97,22 @@ class CommentService:
         
         Args:
             comment_id: Comment ID
-            user_id: User ID (must be comment owner or admin)
+            user_id: User ID (must be comment owner)
             ip_address: Client IP address
         """
         comment = CommentService.get_comment_by_id(comment_id)
         
         # Check permission
         user = UserRepository.get_by_id(user_id)
-        if str(comment.user_id) != user_id and not user.is_admin:
+        if not user:
+            raise NotFoundError(f"User {user_id} not found")
+        if comment.user.user_id != user_id and not user.is_admin:
             raise PermissionDeniedError("Not authorized to delete this comment")
         
-        post_id = str(comment.post_id)
-        
-        # Delete comment
+        post_id = str(comment.post.post_id)
+        nb_post_replies = len(CommentRepository.get_replies(comment_id, page=1, page_size=20))
+        # Delete comment (repository will decrement post comment count for deleted rows)
         CommentRepository.delete(comment_id)
-        
-        # Decrement post comment count
-        PostRepository.decrement_comment_count(post_id)
-        
         # Audit log
         AuditLogRepository.create(
             user_id=user_id,

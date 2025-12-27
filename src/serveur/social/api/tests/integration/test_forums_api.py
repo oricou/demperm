@@ -137,7 +137,7 @@ def test_create_forum_validation_error(monkeypatch, authenticated_client):
 
     monkeypatch.setattr('services.apps_services.forum_service.ForumService.create_forum', _raise)
 
-    resp = authenticated_client.post('/api/v1/forums/create/', data={'name': 'x', 'description': 'd'}, format='json')
+    resp = authenticated_client.post('/api/v1/forums/create/', data={'name': 'Xxx', 'description': 'd'}, format='json')
     assert resp.status_code == 400
     assert resp.json().get('error', {}).get('code') == 'VALIDATION_ERROR'
 

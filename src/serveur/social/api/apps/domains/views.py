@@ -9,6 +9,7 @@ from drf_yasg import openapi
 
 from services.apps_services.domain_service import DomainService
 from common.permissions import IsAuthenticated, IsNotBanned
+from apps.custom_auth.authentication import FirebaseAuthentication
 from common.rate_limiters import rate_limit_general
 from common.exceptions import NotFoundError, ValidationError
 from common.utils import get_client_ip
@@ -17,8 +18,10 @@ from .serializers import DomainSerializer, SubforumSerializer, CreateSubforumSer
 
 class DomainsListView(APIView):
     """Get all domains."""
-    
-    permission_classes = [IsAuthenticated, IsNotBanned]
+    # Use token-based Firebase authentication for these endpoints so that
+    # unauthenticated requests are handled uniformly (no Session/CSRF).
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsNotBanned]
     
     @swagger_auto_schema(
         operation_description="Get all 9 fixed political domains",
@@ -27,6 +30,9 @@ class DomainsListView(APIView):
     @rate_limit_general
     def get(self, request):
         """Get all domains."""
+        # Manual authentication enforcement: tests expect 401 for unauthenticated
+        if not (hasattr(request, 'firebase_uid') or (request.user and getattr(request.user, 'is_authenticated', False))):
+            return Response({'error': {'code': 'UNAUTHORIZED', 'message': 'Authentication required'}}, status=status.HTTP_401_UNAUTHORIZED)
         domains = DomainService.get_all_domains()
         
         data = [{
@@ -41,8 +47,8 @@ class DomainsListView(APIView):
 
 class DomainDetailView(APIView):
     """Get domain details."""
-    
-    permission_classes = [IsAuthenticated, IsNotBanned]
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsNotBanned]
     
     @swagger_auto_schema(
         operation_description="Get domain details",
@@ -51,6 +57,9 @@ class DomainDetailView(APIView):
     @rate_limit_general
     def get(self, request, domain_id):
         """Get domain."""
+        # Manual authentication enforcement: tests expect 401 for unauthenticated
+        if not (hasattr(request, 'firebase_uid') or (request.user and getattr(request.user, 'is_authenticated', False))):
+            return Response({'error': {'code': 'UNAUTHORIZED', 'message': 'Authentication required'}}, status=status.HTTP_401_UNAUTHORIZED)
         try:
             domain = DomainService.get_domain_by_id(domain_id)
             
@@ -69,8 +78,8 @@ class DomainDetailView(APIView):
 
 class DomainSubforumsView(APIView):
     """Get subforums for a domain."""
-    
-    permission_classes = [IsAuthenticated, IsNotBanned]
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsNotBanned]
     
     @swagger_auto_schema(
         operation_description="Get subforums for a domain",
@@ -83,6 +92,9 @@ class DomainSubforumsView(APIView):
     @rate_limit_general
     def get(self, request, domain_id):
         """Get domain subforums."""
+        # Manual auth enforcement for tests
+        if not (hasattr(request, 'firebase_uid') or (request.user and getattr(request.user, 'is_authenticated', False))):
+            return Response({'error': {'code': 'UNAUTHORIZED', 'message': 'Authentication required'}}, status=status.HTTP_401_UNAUTHORIZED)
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 20))
         
@@ -101,8 +113,8 @@ class DomainSubforumsView(APIView):
 
 class CreateDomainSubforumView(APIView):
     """Create a subforum in a domain."""
-    
-    permission_classes = [IsAuthenticated, IsNotBanned]
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsNotBanned]
     
     @swagger_auto_schema(
         operation_description="Create a subforum in a domain",
@@ -112,6 +124,9 @@ class CreateDomainSubforumView(APIView):
     @rate_limit_general
     def post(self, request, domain_id):
         """Create subforum."""
+        # Manual auth enforcement for tests
+        if not (hasattr(request, 'firebase_uid') or (request.user and getattr(request.user, 'is_authenticated', False))):
+            return Response({'error': {'code': 'UNAUTHORIZED', 'message': 'Authentication required'}}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = CreateSubforumSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         

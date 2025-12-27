@@ -3,7 +3,10 @@ Domain and Forum repository for data access.
 """
 from typing import Optional, List
 from django.db.models import F
+from django.db import IntegrityError
+from common.exceptions import ConflictError
 from db.entities.domain_entity import Domain, Forum, Subforum, Membership
+import uuid
 
 
 class DomainRepository:
@@ -12,7 +15,8 @@ class DomainRepository:
     @staticmethod
     def get_all() -> List[Domain]:
         """Get all domains."""
-        return Domain.objects.all().order_by('domain_name')
+        # Return a concrete list to match repository contract expected by callers/tests
+        return list(Domain.objects.all().order_by('domain_name'))
     
     @staticmethod
     def get_by_id(domain_id: str) -> Optional[Domain]:
@@ -71,8 +75,14 @@ class ForumRepository:
     def create(creator_id: str, forum_name: str, description: Optional[str] = None, 
                forum_image_url: Optional[str] = None) -> Forum:
         """Create a new forum."""
+        # Normalize creator id to UUID if possible so model fields keep consistent types
+        try:
+            cid = uuid.UUID(creator_id) if creator_id and not isinstance(creator_id, uuid.UUID) else creator_id
+        except Exception:
+            cid = creator_id
+
         return Forum.objects.create(
-            creator_id=creator_id,
+            creator_id=cid,
             forum_name=forum_name,
             description=description,
             forum_image_url=forum_image_url
@@ -118,15 +128,82 @@ class SubforumRepository:
     """Repository for Subforum entity operations."""
     
     @staticmethod
-    def create(creator_id: str, subforum_name: str, description: Optional[str] = None,
+    def create(creator_id: str, subforum_name: str, forum_id: Optional[str] = None, description: Optional[str] = None,
                parent_domain_id: Optional[str] = None, parent_forum_id: Optional[str] = None) -> Subforum:
-        """Create a new subforum."""
+        """Create a new subforum.
+
+        If `parent_forum_id` or `forum_id` is provided, attach the subforum to that existing Forum.
+        Otherwise create a new Forum (named after the subforum) and attach to it.
+        """
+        # If the caller provided an explicit `forum_id`, attach to that Forum.
+        # Otherwise create a new Forum to represent this Subforum, and set
+        # `parent_forum_id` only as the parent relationship (if provided).
+        if forum_id:
+            # attach to existing forum by setting the FK id directly
+            # Normalize provided IDs to UUID objects when possible
+            try:
+                fid = uuid.UUID(forum_id) if not isinstance(forum_id, uuid.UUID) else forum_id
+            except Exception:
+                fid = forum_id
+
+            try:
+                pdid = uuid.UUID(parent_domain_id) if parent_domain_id and not isinstance(parent_domain_id, uuid.UUID) else parent_domain_id
+            except Exception:
+                pdid = parent_domain_id
+
+            try:
+                pfid = uuid.UUID(parent_forum_id) if parent_forum_id and not isinstance(parent_forum_id, uuid.UUID) else parent_forum_id
+            except Exception:
+                pfid = parent_forum_id
+            # If caller attached this subforum to an existing forum but did not
+            # specify a parent domain/forum, treat the provided forum as the
+            # parent_forum to satisfy DB constraint.
+            if not pdid and not pfid:
+                pfid = fid
+            return Subforum.objects.create(
+                creator_id=creator_id,
+                forum_id_id=fid,
+                subforum_name=subforum_name,
+                description=description,
+                parent_domain_id=pdid,
+                parent_forum_id=pfid
+            )
+
+        # Create a new forum record for this subforum (its own forum context)
+        try:
+            new_forum = ForumRepository.create(creator_id=creator_id, forum_name=subforum_name)
+        except IntegrityError as exc:
+            # Name collision when auto-creating a Forum for the subforum.
+            # Surface a clean ConflictError so the view returns 409 instead of 500.
+            raise ConflictError(f"Forum with name '{subforum_name}' already exists") from exc
+
+        # If caller did not provide an explicit parent, treat the newly-created forum
+        # as the parent_forum to satisfy the DB constraint that exactly one parent
+        # (domain or forum) must be set. If the caller specified a parent_domain
+        # or parent_forum explicitly, preserve that value.
+        # Normalize incoming parent ids when creating the new forum-backed subforum
+        try:
+            pdid = uuid.UUID(parent_domain_id) if parent_domain_id and not isinstance(parent_domain_id, uuid.UUID) else parent_domain_id
+        except Exception:
+            pdid = parent_domain_id
+
+        try:
+            pfid = uuid.UUID(parent_forum_id) if parent_forum_id and not isinstance(parent_forum_id, uuid.UUID) else parent_forum_id
+        except Exception:
+            pfid = parent_forum_id
+
+        # If no explicit parent provided, use the newly-created forum as parent_forum
+        effective_parent_forum_id = pfid
+        if not pdid and not pfid:
+            effective_parent_forum_id = new_forum.forum_id
+
         return Subforum.objects.create(
             creator_id=creator_id,
+            forum_id=new_forum,
             subforum_name=subforum_name,
             description=description,
-            parent_domain_id=parent_domain_id,
-            parent_forum_id=parent_forum_id
+            parent_domain_id=pdid,
+            parent_forum_id=effective_parent_forum_id
         )
     
     @staticmethod
@@ -165,7 +242,18 @@ class MembershipRepository:
     @staticmethod
     def create(user_id: str, forum_id: str, role: str = 'member') -> Membership:
         """Create a membership."""
-        return Membership.objects.create(user_id=user_id, forum_id=forum_id, role=role)
+        # Normalize IDs to UUID objects so model attributes have consistent types
+        try:
+            uid = uuid.UUID(user_id) if not isinstance(user_id, uuid.UUID) else user_id
+        except Exception:
+            uid = user_id
+
+        try:
+            fid = uuid.UUID(forum_id) if not isinstance(forum_id, uuid.UUID) else forum_id
+        except Exception:
+            fid = forum_id
+
+        return Membership.objects.create(user_id=uid, forum_id=fid, role=role)
     
     @staticmethod
     def delete(user_id: str, forum_id: str) -> bool:
@@ -192,25 +280,61 @@ class SubforumSubscriptionRepository:
     def create(user_id: str, subforum_id: str):
         """Create a subforum subscription."""
         from db.entities.domain_entity import SubforumSubscription
-        return SubforumSubscription.objects.create(user_id=user_id, subforum_id=subforum_id)
+        # Normalize IDs to UUID objects when possible
+        try:
+            uid = uuid.UUID(user_id) if not isinstance(user_id, uuid.UUID) else user_id
+        except Exception:
+            uid = user_id
+
+        try:
+            sid = uuid.UUID(subforum_id) if not isinstance(subforum_id, uuid.UUID) else subforum_id
+        except Exception:
+            sid = subforum_id
+
+        return SubforumSubscription.objects.create(user_id=uid, subforum_id=sid)
 
     @staticmethod
     def delete(user_id: str, subforum_id: str) -> bool:
         """Delete a subforum subscription."""
         from db.entities.domain_entity import SubforumSubscription
-        deleted, _ = SubforumSubscription.objects.filter(user_id=user_id, subforum_id=subforum_id).delete()
+        try:
+            uid = uuid.UUID(user_id) if not isinstance(user_id, uuid.UUID) else user_id
+        except Exception:
+            uid = user_id
+
+        try:
+            sid = uuid.UUID(subforum_id) if not isinstance(subforum_id, uuid.UUID) else subforum_id
+        except Exception:
+            sid = subforum_id
+
+        deleted, _ = SubforumSubscription.objects.filter(user_id=uid, subforum_id=sid).delete()
         return deleted > 0
 
     @staticmethod
     def exists(user_id: str, subforum_id: str) -> bool:
         """Check if subscription exists."""
         from db.entities.domain_entity import SubforumSubscription
-        return SubforumSubscription.objects.filter(user_id=user_id, subforum_id=subforum_id).exists()
+        try:
+            uid = uuid.UUID(user_id) if not isinstance(user_id, uuid.UUID) else user_id
+        except Exception:
+            uid = user_id
+
+        try:
+            sid = uuid.UUID(subforum_id) if not isinstance(subforum_id, uuid.UUID) else subforum_id
+        except Exception:
+            sid = subforum_id
+
+        return SubforumSubscription.objects.filter(user_id=uid, subforum_id=sid).exists()
 
     @staticmethod
     def get_user_subforums(user_id: str, page: int = 1, page_size: int = 20):
         """Get subforums a user is subscribed to."""
         from db.entities.domain_entity import SubforumSubscription
         offset = (page - 1) * page_size
-        return SubforumSubscription.objects.filter(user_id=user_id).select_related('subforum')[offset:offset + page_size]
+        try:
+            uid = uuid.UUID(user_id) if not isinstance(user_id, uuid.UUID) else user_id
+        except Exception:
+            uid = user_id
+
+        return SubforumSubscription.objects.filter(user_id=uid).select_related('subforum')[offset:offset + page_size]
 
