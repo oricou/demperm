@@ -6,6 +6,7 @@ export function setCredentials(email: string, token: string) {
   try {
     localStorage.setItem(AUTH_EMAIL_KEY, email)
     localStorage.setItem(AUTH_TOKEN_KEY, token)
+    localStorage.setItem(LEGACY_AUTH_TOKEN_KEY, token)
   } catch {}
 }
 
@@ -20,7 +21,7 @@ export function clearCredentials() {
 export function getCredentials() {
   try {
     const email = localStorage.getItem(AUTH_EMAIL_KEY)
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    const token = localStorage.getItem(AUTH_TOKEN_KEY) ?? localStorage.getItem(LEGACY_AUTH_TOKEN_KEY)
     return { email, token }
   } catch {
     return { email: null, token: null }

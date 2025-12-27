@@ -9,6 +9,7 @@ import { InfoCard } from '../../../components/composite/InfoCard'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
 import { Select } from '../../../components/ui/Select'
+import { getCredentials } from '../../../shared/auth'
 
 type InfoField = 'Prénom' | 'Nom' | 'Pseudo'
 type ProfileInfoItem = { label: InfoField; value: string }
@@ -73,11 +74,15 @@ export default function PublicProfilePage() {
     avatarUrl: '',
     bio: ''
   })
+  const [voteTargetId, setVoteTargetId] = useState<string | null>(null)
   const [stats, setStats] = useState<{ label: string; value: string }[]>([])
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [infoItems, setInfoItems] = useState<ProfileInfoItem[]>([])
-  const [followers, setFollowers] = useState<FollowUser[]>([])
-  const [following, setFollowing] = useState<FollowUser[]>([])
+  const [posts, setPosts] = useState<PostItem[]>([])
+  const [usingFallback, setUsingFallback] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [voteStatus, setVoteStatus] = useState<{ tone: 'success' | 'danger'; message: string } | null>(null)
+  const [isVoting, setIsVoting] = useState(false)
   const [searchParams] = useSearchParams()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [isFollowing, setIsFollowing] = useState(false)
@@ -241,9 +246,47 @@ export default function PublicProfilePage() {
   }, [voteCategories])
 
   /** Action vote (mock) : pour l'instant simple placeholder sans backend. */
-  function handleVote() {
-    void selectedCategory
-    // Placeholder : à connecter au backend lorsqu'il sera prêt
+  async function handleVote() {
+    if (!selectedCategory) return
+    const { token } = getCredentials()
+    if (!token) {
+      setVoteStatus({ tone: 'danger', message: 'Connexion requise pour voter.' })
+      return
+    }
+
+    const target = voteTargetId || targetUserId
+    if (!target) {
+      setVoteStatus({ tone: 'danger', message: "Impossible d'identifier l'utilisateur à voter." })
+      return
+    }
+
+    setIsVoting(true)
+    setVoteStatus(null)
+    try {
+      const baseUrl = import.meta.env.VITE_VOTE_API_URL || ''
+      const response = await fetch(`${baseUrl}/api/votes`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          targetUserId: target,
+          domain: selectedCategory
+        })
+      })
+
+      if (!response.ok) {
+        setVoteStatus({ tone: 'danger', message: `Vote refusé (HTTP ${response.status}).` })
+        return
+      }
+
+      setVoteStatus({ tone: 'success', message: 'Vote enregistré.' })
+    } catch {
+      setVoteStatus({ tone: 'danger', message: "Impossible de joindre le serveur vote." })
+    } finally {
+      setIsVoting(false)
+    }
   }
 
   /** Redirige vers la messagerie (ajout contact à brancher côté backend plus tard). */
@@ -342,6 +385,16 @@ export default function PublicProfilePage() {
         onPhotoChange={() => { /* backend upload to wire later */ }}
         photoEditable={false}
       />
+      {error ? (
+        <div className="rounded-2xl border border-danger bg-red-50 px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      ) : null}
+      {usingFallback ? (
+        <div className="rounded-2xl border border-border bg-background-soft px-4 py-3 text-sm text-muted">
+          Mode démo : données mock (API Social indisponible).
+        </div>
+      ) : null}
 
       <div className="grid gap-6 md:grid-cols-12">
         <div className="space-y-6 md:col-span-3">
@@ -452,12 +505,22 @@ export default function PublicProfilePage() {
                     </option>
                   ))}
                 </Select>
-              <Button className="w-full" variant="primary" onClick={handleVote}>
-                Voter pour ce profil
+              <Button
+                className="w-full"
+                variant="primary"
+                onClick={handleVote}
+                disabled={isVoting || !selectedCategory}
+              >
+                {isVoting ? 'Vote…' : 'Voter pour ce profil'}
               </Button>
               <Button className="w-full" variant="outline" onClick={handleAddToMessaging}>
                 Ajouter à la messagerie
               </Button>
+              {voteStatus ? (
+                <p className={voteStatus.tone === 'success' ? 'text-xs text-success' : 'text-xs text-danger'}>
+                  {voteStatus.message}
+                </p>
+              ) : null}
               <p className="text-xs text-muted">
                 Les futures fonctionnalités de carnet de contacts apparaîtront ici.
               </p>
