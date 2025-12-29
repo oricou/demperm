@@ -2,10 +2,17 @@
   "swagger": "2.0",
   "info": {
     "title": "Social API",
-    "description": "API du serveur social",
+    "description": "API du serveur social Demperm",
+    "termsOfService": "https://www.example.com/terms/",
+    "contact": {
+      "email": "contact@example.com"
+    },
+    "license": {
+      "name": "MIT License"
+    },
     "version": "v1.0.0"
   },
-  "host": "127.0.0.1:8000",
+  "host": "localhost:8000",
   "schemes": [
     "http"
   ],
@@ -17,270 +24,791 @@
     "application/json"
   ],
   "securityDefinitions": {
-    "Basic": {
-      "type": "basic"
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Firebase ID Token Authorization header using the Bearer scheme. Example: \"Bearer <your_firebase_id_token>\". Get your Firebase ID token from Firebase Authentication SDK after login."
     }
   },
   "security": [
     {
-      "Basic": []
+      "Bearer": []
     }
   ],
   "paths": {
-    "/domains/": {
-      "get": {
-        "operationId": "domains_list",
-        "description": "Liste des domaines",
+    "/admin/comments/{comment_id}/remove/": {
+      "delete": {
+        "operationId": "admin_comments_remove_delete",
+        "description": "Remove a comment",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Liste des domaines"
-          },
-          "401": {
-            "description": "Non authentifié"
+          "204": {
+            "description": "Comment removed"
           }
         },
         "tags": [
-          "Domains"
-        ]
-      },
-      "parameters": []
-    },
-    "/domains/{id}": {
-      "get": {
-        "operationId": "domains_read",
-        "description": "Détails d'un domaine",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Domaine trouvé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Domaine non trouvé"
-          }
-        },
-        "tags": [
-          "Domains"
+          "admin"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "comment_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/domains/{id}/subforums": {
-      "get": {
-        "operationId": "domains_subforums_list",
-        "description": "Liste des sous-forums d'un domaine",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Liste des sous-forums"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Domaine non trouvé"
-          }
-        },
-        "tags": [
-          "Domains"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/domains/{id}/subforums/create": {
+    "/admin/domains/create/": {
       "post": {
-        "operationId": "domains_subforums_create_create",
-        "description": "Créer un sous-forum dans un domaine",
+        "operationId": "admin_domains_create_create",
+        "description": "Create a domain",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "name"
-              ],
-              "type": "object",
-              "properties": {
-                "name": {
-                  "description": "Nom du sous-forum",
-                  "type": "string"
-                },
-                "description": {
-                  "description": "Description du sous-forum",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/AdminDomainCreateUpdateSerializer"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Sous-forum créé"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Domaine non trouvé"
+            "description": "Domain created"
           }
         },
         "tags": [
-          "Domains"
+          "admin"
+        ]
+      },
+      "parameters": []
+    },
+    "/admin/domains/{domain_id}/": {
+      "patch": {
+        "operationId": "admin_domains_partial_update",
+        "description": "Update or delete a domain",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AdminDomainCreateUpdateSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Domain updated"
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "delete": {
+        "operationId": "admin_domains_delete",
+        "description": "Delete a domain",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Domain deleted"
+          }
+        },
+        "tags": [
+          "admin"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "domain_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/followers/me": {
+    "/admin/posts/{post_id}/remove/": {
+      "delete": {
+        "operationId": "admin_posts_remove_delete",
+        "description": "Remove a post",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Post removed"
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/admin/reports/": {
       "get": {
-        "operationId": "followers_me_list",
-        "description": "Liste des followers (utilisateurs suivant l'utilisateur actuel)",
+        "operationId": "admin_reports_list",
+        "description": "Get all reports",
         "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
           {
             "name": "page",
             "in": "query",
             "type": "integer",
-            "default": 1,
-            "description": "Numéro de la page"
+            "default": 1
           },
           {
             "name": "page_size",
             "in": "query",
             "type": "integer",
-            "default": 20,
-            "description": "Nombre d'éléments par page"
+            "default": 20
           }
         ],
         "responses": {
           "200": {
-            "description": "Liste des followers"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AdminReportSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Followers"
+          "admin"
         ]
       },
       "parameters": []
     },
-    "/followers/following": {
+    "/admin/reports/{report_id}/reject/": {
+      "post": {
+        "operationId": "admin_reports_reject_create",
+        "description": "Reject a report",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AdminReportActionSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AdminReportSerializer"
+            }
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "report_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/admin/reports/{report_id}/resolve/": {
+      "post": {
+        "operationId": "admin_reports_resolve_create",
+        "description": "Resolve a report",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AdminReportActionSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AdminReportSerializer"
+            }
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "report_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/admin/stats/activity/": {
+      "get": {
+        "operationId": "admin_stats_activity_list",
+        "description": "Activity statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AdminActivityStatsSerializer"
+            }
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": []
+    },
+    "/admin/stats/posts/": {
+      "get": {
+        "operationId": "admin_stats_posts_list",
+        "description": "Post statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AdminPostsStatsSerializer"
+            }
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": []
+    },
+    "/admin/stats/users/": {
+      "get": {
+        "operationId": "admin_stats_users_list",
+        "description": "User statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/AdminUsersStatsSerializer"
+            }
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": []
+    },
+    "/admin/tags/delete/": {
+      "delete": {
+        "operationId": "admin_tags_delete_delete",
+        "description": "Delete a tag by tag_id (query param)",
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Tag deleted"
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": []
+    },
+    "/admin/users/{user_id}/ban/": {
+      "post": {
+        "operationId": "admin_users_ban_create",
+        "description": "Ban a user",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "User banned successfully"
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/admin/users/{user_id}/unban/": {
+      "post": {
+        "operationId": "admin_users_unban_create",
+        "description": "Unban a user",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "User unbanned successfully"
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/comments/posts/{post_id}/": {
+      "get": {
+        "operationId": "comments_posts_read",
+        "description": "Get comments for a post",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "type": "string",
+            "default": "created_at"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.comments.serializers.CommentSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "comments"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/comments/posts/{post_id}/create/": {
+      "post": {
+        "operationId": "comments_posts_create_create",
+        "description": "Create a comment on a post",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.comments.serializers.CreateCommentSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.comments.serializers.CommentSerializer"
+            }
+          }
+        },
+        "tags": [
+          "comments"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/comments/{comment_id}/delete/": {
+      "delete": {
+        "operationId": "comments_delete_delete",
+        "description": "Delete a comment",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Comment deleted successfully"
+          }
+        },
+        "tags": [
+          "comments"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "comment_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/comments/{comment_id}/replies/": {
+      "get": {
+        "operationId": "comments_replies_list",
+        "description": "Get replies to a comment",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.comments.serializers.CommentSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "comments"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "comment_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/domains/": {
+      "get": {
+        "operationId": "domains_list",
+        "description": "Get all 9 fixed political domains",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.domains.serializers.DomainSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "domains"
+        ]
+      },
+      "parameters": []
+    },
+    "/domains/{domain_id}/": {
+      "get": {
+        "operationId": "domains_read",
+        "description": "Get domain details",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.domains.serializers.DomainSerializer"
+            }
+          }
+        },
+        "tags": [
+          "domains"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "domain_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/domains/{domain_id}/subforums/": {
+      "get": {
+        "operationId": "domains_subforums_list",
+        "description": "Get subforums for a domain",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.domains.serializers.SubforumSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "domains"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "domain_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/domains/{domain_id}/subforums/create/": {
+      "post": {
+        "operationId": "domains_subforums_create_create",
+        "description": "Create a subforum in a domain",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.domains.serializers.CreateSubforumSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.domains.serializers.SubforumSerializer"
+            }
+          }
+        },
+        "tags": [
+          "domains"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "domain_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/following/": {
       "get": {
         "operationId": "followers_following_list",
-        "description": "Liste des suivis (utilisateurs suivis par l'utilisateur actuel)",
+        "description": "Get users that current user follows",
         "parameters": [
           {
             "name": "page",
             "in": "query",
             "type": "integer",
-            "default": 1,
-            "description": "Numéro de la page"
+            "default": 1
           },
           {
             "name": "page_size",
             "in": "query",
             "type": "integer",
-            "default": 20,
-            "description": "Nombre d'éléments par page"
+            "default": 20
           }
         ],
         "responses": {
           "200": {
-            "description": "Liste des utilisateurs suivis"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.followers.serializers.UserFollowSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Followers"
+          "followers"
         ]
       },
       "parameters": []
     },
-    "/followers/pending": {
+    "/followers/me/": {
+      "get": {
+        "operationId": "followers_me_list",
+        "description": "Get user's followers",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.followers.serializers.UserFollowSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "followers"
+        ]
+      },
+      "parameters": []
+    },
+    "/followers/pending/": {
       "get": {
         "operationId": "followers_pending_list",
-        "description": "Demandes de suivi en attente",
+        "description": "Get pending follow requests",
         "parameters": [
           {
             "name": "page",
             "in": "query",
             "type": "integer",
-            "default": 1,
-            "description": "Numéro de la page"
+            "default": 1
           },
           {
             "name": "page_size",
             "in": "query",
             "type": "integer",
-            "default": 20,
-            "description": "Nombre d'éléments par page"
+            "default": 20
           }
         ],
         "responses": {
           "200": {
-            "description": "Demandes de suivi en attente"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.followers.serializers.FollowSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Followers"
+          "followers"
         ]
       },
       "parameters": []
     },
-    "/followers/{user_id}/follow": {
+    "/followers/{user_id}/accept/": {
+      "post": {
+        "operationId": "followers_accept_create",
+        "description": "Accept a follow request",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.followers.serializers.FollowSerializer"
+            }
+          }
+        },
+        "tags": [
+          "followers"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/{user_id}/follow/": {
       "post": {
         "operationId": "followers_follow_create",
-        "description": "Envoyer une demande de suivi (auto-acceptée pour profil public, en attente pour profil privé)",
+        "description": "Follow a user (auto-accepted for public, pending for private)",
         "parameters": [],
         "responses": {
           "201": {
-            "description": "Suivi créé"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.followers.serializers.FollowSerializer"
+            }
           }
         },
         "tags": [
-          "Followers"
+          "followers"
         ]
       },
       "parameters": [
@@ -292,82 +820,41 @@
         }
       ]
     },
-    "/followers/{user_id}/unfollow": {
-      "delete": {
-        "operationId": "followers_unfollow_delete",
-        "description": "Se désabonner d'un utilisateur",
-        "parameters": [],
-        "responses": {
-          "204": {
-            "description": "Désabonnement réussi"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
-          }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "user_id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/followers/{user_id}/accept": {
-      "post": {
-        "operationId": "followers_accept_create",
-        "description": "Accepter une demande de suivi",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Demande acceptée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Demande non trouvée"
-          }
-        },
-        "tags": [
-          "Followers"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "user_id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/followers/{user_id}/refuse": {
+    "/followers/{user_id}/refuse/": {
       "post": {
         "operationId": "followers_refuse_create",
-        "description": "Refuser une demande de suivi",
+        "description": "Refuse a follow request",
         "parameters": [],
         "responses": {
           "204": {
-            "description": "Demande refusée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Demande non trouvée"
+            "description": "Refuseed successfully"
           }
         },
         "tags": [
-          "Followers"
+          "followers"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/followers/{user_id}/unfollow/": {
+      "delete": {
+        "operationId": "followers_unfollow_delete",
+        "description": "Unfollow a user",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Unfollowed successfully"
+          }
+        },
+        "tags": [
+          "followers"
         ]
       },
       "parameters": [
@@ -382,218 +869,412 @@
     "/forums/": {
       "get": {
         "operationId": "forums_list",
-        "description": "Liste des forums",
-        "parameters": [],
+        "description": "Get all forums",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Liste des forums"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.forums.serializers.ForumSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": []
     },
-    "/forums/create": {
+    "/forums/create/": {
       "post": {
         "operationId": "forums_create_create",
-        "description": "Créer un forum",
+        "description": "Create a new forum",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "name"
-              ],
-              "type": "object",
-              "properties": {
-                "name": {
-                  "description": "Nom du forum",
-                  "type": "string"
-                },
-                "description": {
-                  "description": "Description du forum",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/apps.forums.serializers.CreateForumSerializer"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Forum créé"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.forums.serializers.ForumSerializer"
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": []
     },
-    "/forums/me": {
+    "/forums/me/": {
       "get": {
         "operationId": "forums_me_list",
-        "description": "Forums suivis par l'utilisateur",
-        "parameters": [],
+        "description": "Get forums for the authenticated user",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Liste des forums suivis"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.forums.serializers.ForumSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": []
     },
-    "/forums/search": {
+    "/forums/search/": {
       "get": {
         "operationId": "forums_search_list",
-        "description": "Recherche de forums",
+        "description": "Search forums by name",
         "parameters": [
           {
             "name": "query",
             "in": "query",
-            "description": "Terme de recherche",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
           }
         ],
         "responses": {
           "200": {
-            "description": "Résultats de recherche"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.forums.serializers.ForumSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": []
     },
-    "/forums/{id}": {
+    "/forums/{forum_id}/": {
       "get": {
         "operationId": "forums_read",
-        "description": "Détails d'un forum",
+        "description": "Get forum details",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Forum trouvé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Forum non trouvé"
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.forums.serializers.ForumSerializer"
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "forum_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/forums/{id}/subforums": {
+    "/forums/{forum_id}/join/": {
+      "post": {
+        "operationId": "forums_join_create",
+        "description": "Join a forum",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Joined forum successfully"
+          }
+        },
+        "tags": [
+          "forums"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "forum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/forums/{forum_id}/leave/": {
+      "delete": {
+        "operationId": "forums_leave_delete",
+        "description": "Leave a forum",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Left forum successfully"
+          }
+        },
+        "tags": [
+          "forums"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "forum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/forums/{forum_id}/subforums/": {
       "get": {
         "operationId": "forums_subforums_list",
-        "description": "Liste des sous-forums",
-        "parameters": [],
+        "description": "Get subforums for a forum",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Liste des sous-forums"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Forum non trouvé"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.domains.serializers.SubforumSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "forum_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/forums/{id}/subforums/create": {
+    "/forums/{forum_id}/subforums/create/": {
       "post": {
         "operationId": "forums_subforums_create_create",
-        "description": "Créer un sous-forum",
+        "description": "Create a subforum under a forum",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "name"
-              ],
-              "type": "object",
-              "properties": {
-                "name": {
-                  "description": "Nom du sous-forum",
-                  "type": "string"
-                },
-                "description": {
-                  "description": "Description du sous-forum",
-                  "type": "string"
-                }
-              }
+              "$ref": "#/definitions/apps.domains.serializers.CreateSubforumSerializer"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Sous-forum créé"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Forum non trouvé"
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.domains.serializers.SubforumSerializer"
+            }
           }
         },
         "tags": [
-          "Forums"
+          "forums"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "forum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/forums/{forum_id}/tree/": {
+      "get": {
+        "operationId": "forums_tree_list",
+        "description": "Get subforum tree for a forum",
+        "parameters": [
+          {
+            "name": "depth",
+            "in": "query",
+            "description": "Maximum depth (>=1)",
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tree",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.domains.serializers.SubforumSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "forums"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "forum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/likes/posts/{post_id}/like/": {
+      "post": {
+        "operationId": "likes_posts_like_create",
+        "description": "Like a post",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.posts.serializers.LikeSerializer"
+            }
+          }
+        },
+        "tags": [
+          "likes"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/likes/posts/{post_id}/likes/": {
+      "get": {
+        "operationId": "likes_posts_likes_list",
+        "description": "Get users who liked the post",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.posts.serializers.LikeSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "likes"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/likes/posts/{post_id}/unlike/": {
+      "delete": {
+        "operationId": "likes_posts_unlike_delete",
+        "description": "Unlike a post",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Post unliked successfully"
+          }
+        },
+        "tags": [
+          "likes"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
           "in": "path",
           "required": true,
           "type": "string"
@@ -603,101 +1284,69 @@
     "/messages/": {
       "get": {
         "operationId": "messages_list",
-        "description": "Lister les conversations de l'utilisateur",
-        "parameters": [],
+        "description": "Get all conversations",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Conversations trouvées"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.custom_messages.serializers.ConversationSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Messages"
+          "messages"
         ]
       },
       "parameters": []
     },
-    "/messages/{id}": {
+    "/messages/{user_id}/": {
       "get": {
         "operationId": "messages_read",
-        "description": "Voir les messages échangés avec un utilisateur spécifique",
-        "parameters": [],
+        "description": "Get conversation with a user",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Messages trouvés"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.custom_messages.serializers.MessageSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Messages"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/messages/{id}/delete": {
-      "delete": {
-        "operationId": "messages_delete_delete",
-        "description": "Supprimer une conversation avec un utilisateur spécifique",
-        "parameters": [],
-        "responses": {
-          "204": {
-            "description": "Conversation supprimée"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Conversation non trouvée"
-          }
-        },
-        "tags": [
-          "Messages"
-        ]
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "type": "string"
-        }
-      ]
-    },
-    "/messages/{user_id}/create": {
-      "post": {
-        "operationId": "messages_create_create",
-        "description": "Créer une nouvelle conversation avec un utilisateur",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "Conversation créée"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
-          }
-        },
-        "tags": [
-          "Messages"
+          "messages"
         ]
       },
       "parameters": [
@@ -709,264 +1358,490 @@
         }
       ]
     },
-    "/posts/create": {
+    "/messages/{user_id}/create/": {
       "post": {
-        "operationId": "posts_create_create",
-        "description": "Créer un post",
+        "operationId": "messages_create_create",
+        "description": "Send an E2E encrypted message",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "title",
-                "content"
-              ],
-              "type": "object",
-              "properties": {
-                "title": {
-                  "description": "Titre du post",
-                  "type": "string"
-                },
-                "content": {
-                  "description": "Contenu du post",
-                  "type": "string"
-                },
-                "subforum_id": {
-                  "description": "ID du sous-forum",
-                  "type": "integer"
-                }
-              }
+              "$ref": "#/definitions/apps.custom_messages.serializers.SendMessageSerializer"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Post créé"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.custom_messages.serializers.MessageSerializer"
+            }
           }
         },
         "tags": [
-          "Posts"
-        ]
-      },
-      "parameters": []
-    },
-    "/posts/discover": {
-      "get": {
-        "operationId": "posts_discover_list",
-        "description": "Découvrir des posts (découverte)",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Posts découverts"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Posts"
-        ]
-      },
-      "parameters": []
-    },
-    "/posts/feed": {
-      "get": {
-        "operationId": "posts_feed_list",
-        "description": "Récupère le fil d'actualité (feed) des posts",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Feed récupéré"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Posts"
-        ]
-      },
-      "parameters": []
-    },
-    "/posts/{id}": {
-      "get": {
-        "operationId": "posts_read",
-        "description": "Détails d'un post",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Post trouvé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Post non trouvé"
-          }
-        },
-        "tags": [
-          "Posts"
+          "messages"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "user_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/posts/{id}/delete": {
+    "/messages/{user_id}/delete/": {
       "delete": {
-        "operationId": "posts_delete_delete",
-        "description": "Supprimer un post",
+        "operationId": "messages_delete_delete",
+        "description": "Delete conversation with a user (soft delete)",
         "parameters": [],
         "responses": {
           "204": {
-            "description": "Post supprimé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "403": {
-            "description": "Accès interdit"
+            "description": "Conversation deleted"
           },
           "404": {
-            "description": "Post non trouvé"
+            "description": "User not found"
+          },
+          "400": {
+            "description": "Bad request"
           }
         },
         "tags": [
-          "Posts"
+          "messages"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "user_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/subscriptions/forums/{id}": {
+    "/posts/create/": {
+      "post": {
+        "operationId": "posts_create_create",
+        "description": "Create a new post",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.posts.serializers.CreatePostSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.posts.serializers.PostSerializer"
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": []
+    },
+    "/posts/discover/": {
+      "get": {
+        "operationId": "posts_discover_list",
+        "description": "Get discover feed with trending posts",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.posts.serializers.PostSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": []
+    },
+    "/posts/feed/": {
+      "get": {
+        "operationId": "posts_feed_list",
+        "description": "Get personalized feed from followed users",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.posts.serializers.PostSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": []
+    },
+    "/posts/{post_id}/": {
+      "get": {
+        "operationId": "posts_read",
+        "description": "Get post details",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.posts.serializers.PostSerializer"
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/posts/{post_id}/delete/": {
+      "delete": {
+        "operationId": "posts_delete_delete",
+        "description": "Delete a post",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Post deleted successfully"
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/posts/{post_id}/like/": {
+      "post": {
+        "operationId": "posts_like_create",
+        "description": "Like a post",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.posts.serializers.LikeSerializer"
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/posts/{post_id}/likes/": {
+      "get": {
+        "operationId": "posts_likes_list",
+        "description": "Get users who liked the post",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.posts.serializers.LikeSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/posts/{post_id}/unlike/": {
+      "delete": {
+        "operationId": "posts_unlike_delete",
+        "description": "Unlike a post",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Post unliked successfully"
+          }
+        },
+        "tags": [
+          "posts"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "post_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/reports/create/": {
+      "post": {
+        "operationId": "reports_create_create",
+        "description": "Create a report for a post, comment, or user",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.reports.serializers.CreateReportSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/ReportsReportSerializer"
+            }
+          }
+        },
+        "tags": [
+          "reports"
+        ]
+      },
+      "parameters": []
+    },
+    "/subforums/{subforum_id}/": {
+      "get": {
+        "operationId": "subforums_read",
+        "description": "Get subforum details",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.subforums.serializers.SubforumSerializer"
+            }
+          }
+        },
+        "tags": [
+          "subforums"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "subforum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/subforums/{subforum_id}/posts/": {
+      "get": {
+        "operationId": "subforums_posts_list",
+        "description": "List posts in a subforum",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.subforums.serializers.PostSummarySerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "subforums"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "subforum_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/subscriptions/forums/{forum_id}/": {
       "post": {
         "operationId": "subscriptions_forums_create",
-        "description": "S'abonner à un forum",
+        "description": "Subscribe to a forum",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Abonnement réussi"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Forum non trouvé"
+          "201": {
+            "description": ""
           }
         },
         "tags": [
-          "Subscriptions"
+          "subscriptions"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "forum_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/subscriptions/forums/{id}/unsubscribe": {
+    "/subscriptions/forums/{forum_id}/unsubscribe/": {
       "delete": {
         "operationId": "subscriptions_forums_unsubscribe_delete",
-        "description": "Se désabonner d'un forum",
+        "description": "Unsubscribe from a forum",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Désabonnement réussi"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Forum non trouvé"
+          "204": {
+            "description": ""
           }
         },
         "tags": [
-          "Subscriptions"
+          "subscriptions"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "forum_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/subscriptions/subforums/{id}": {
+    "/subscriptions/subforums/{subforum_id}/": {
       "post": {
         "operationId": "subscriptions_subforums_create",
-        "description": "S'abonner à un sous-forum",
+        "description": "Subscribe to a subforum",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Abonnement au sous-forum réussi"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Sous-forum non trouvé"
+          "201": {
+            "description": ""
           }
         },
         "tags": [
-          "Subscriptions"
+          "subscriptions"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "subforum_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/subscriptions/subforums/{id}/unsubscribe": {
+    "/subscriptions/subforums/{subforum_id}/unsubscribe/": {
       "delete": {
         "operationId": "subscriptions_subforums_unsubscribe_delete",
-        "description": "Se désabonner d'un sous-forum",
+        "description": "Unsubscribe from a subforum",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Désabonnement du topic réussi"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Sous-forum non trouvé"
+          "204": {
+            "description": ""
           }
         },
         "tags": [
-          "Subscriptions"
+          "subscriptions"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "subforum_id",
           "in": "path",
           "required": true,
           "type": "string"
@@ -976,64 +1851,59 @@
     "/tags/": {
       "get": {
         "operationId": "tags_list",
-        "description": "Liste tous les tags disponibles",
-        "parameters": [],
+        "description": "List tags",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 100
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Liste des tags"
-          },
-          "401": {
-            "description": "Non authentifié"
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.tags.serializers.TagSerializer"
+              }
+            }
           }
         },
         "tags": [
-          "Tags"
+          "tags"
         ]
       },
       "parameters": []
     },
-    "/tags/assign/{post_id}": {
+    "/tags/assign/{post_id}/": {
       "post": {
         "operationId": "tags_assign_create",
-        "description": "Assigner des tags à un post",
+        "description": "Assign tags to a post",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "tags"
-              ],
-              "type": "object",
-              "properties": {
-                "tags": {
-                  "description": "Liste des tags à associer",
-                  "type": "array",
-                  "items": {
-                    "type": "integer"
-                  }
-                }
-              }
+              "$ref": "#/definitions/apps.tags.serializers.AssignTagsSerializer"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Tags assignés au post"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Post ou tag non trouvé"
+            "description": "Tags assigned"
           }
         },
         "tags": [
-          "Tags"
+          "tags"
         ]
       },
       "parameters": [
@@ -1045,102 +1915,55 @@
         }
       ]
     },
-    "/tags/create": {
+    "/tags/create/": {
       "post": {
         "operationId": "tags_create_create",
-        "description": "Crée un nouveau tag",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "Tag créé"
-          },
-          "400": {
-            "description": "Données invalides"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Tags"
-        ]
-      },
-      "parameters": []
-    },
-    "/tags/delete": {
-      "delete": {
-        "operationId": "tags_delete_delete",
-        "description": "Supprime un tag spécifique",
-        "parameters": [
-          {
-            "name": "tag_id",
-            "in": "query",
-            "description": "ID du tag à supprimer",
-            "type": "integer"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tag supprimé"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Tag non trouvé"
-          }
-        },
-        "tags": [
-          "Tags"
-        ]
-      },
-      "parameters": []
-    },
-    "/tags/unassign/{post_id}": {
-      "post": {
-        "operationId": "tags_unassign_create",
-        "description": "Désassigner des tags d'un post",
+        "description": "Create a new tag",
         "parameters": [
           {
             "name": "data",
             "in": "body",
             "required": true,
             "schema": {
-              "required": [
-                "tags"
-              ],
-              "type": "object",
-              "properties": {
-                "tags": {
-                  "description": "Liste des tags à désassocier",
-                  "type": "array",
-                  "items": {
-                    "type": "integer"
-                  }
-                }
-              }
+              "$ref": "#/definitions/apps.tags.serializers.CreateTagSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.tags.serializers.TagSerializer"
+            }
+          }
+        },
+        "tags": [
+          "tags"
+        ]
+      },
+      "parameters": []
+    },
+    "/tags/unassign/{post_id}/": {
+      "post": {
+        "operationId": "tags_unassign_create",
+        "description": "Unassign tags from a post",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.tags.serializers.AssignTagsSerializer"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Tags désassignés du post"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Post ou tag non trouvé"
+            "description": "Tags unassigned"
           }
         },
         "tags": [
-          "Tags"
+          "tags"
         ]
       },
       "parameters": [
@@ -1152,234 +1975,317 @@
         }
       ]
     },
-    "/users/bulk": {
-      "get": {
-        "operationId": "users_bulk_list",
-        "description": "Récupère les profils de plusieurs utilisateurs en une seule requête",
-        "parameters": [
-          {
-            "name": "ids",
-            "in": "query",
-            "description": "Liste d'IDs d'utilisateurs séparés par des virgules (ex: 1,2,3)",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profils trouvés"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Users"
-        ]
-      },
-      "parameters": []
-    },
-    "/users/discover": {
-      "get": {
-        "operationId": "users_discover_list",
-        "description": "Découvrir des utilisateurs (découverte)",
+    "/tags/{tag_id}/delete/": {
+      "delete": {
+        "operationId": "tags_delete_delete",
+        "description": "Delete a tag",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "Utilisateurs découverts"
-          },
-          "401": {
-            "description": "Non authentifié"
+          "204": {
+            "description": "Deleted"
           }
         },
         "tags": [
-          "Users"
-        ]
-      },
-      "parameters": []
-    },
-    "/users/me": {
-      "get": {
-        "operationId": "users_me_list",
-        "description": "Récupère les informations du profil connecté",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Profil trouvé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
-          }
-        },
-        "tags": [
-          "Users"
-        ]
-      },
-      "patch": {
-        "operationId": "users_me_partial_update",
-        "description": "Met à jour le profil connecté",
-        "parameters": [
-          {
-            "name": "data",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": "string"
-                },
-                "bio": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profil mis à jour"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Users"
-        ]
-      },
-      "parameters": []
-    },
-    "/users/me/settings": {
-      "patch": {
-        "operationId": "users_me_settings_partial_update",
-        "description": "Met à jour les paramètres de l'utilisateur connecté",
-        "parameters": [
-          {
-            "name": "data",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "email_notifications": {
-                  "type": "boolean"
-                },
-                "privacy": {
-                  "type": "string"
-                },
-                "language": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Paramètres mis à jour"
-          },
-          "400": {
-            "description": "Requête invalide"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Users"
-        ]
-      },
-      "parameters": []
-    },
-    "/users/search": {
-      "get": {
-        "operationId": "users_search_list",
-        "description": "Recherche utilisateur par username",
-        "parameters": [
-          {
-            "name": "username",
-            "in": "query",
-            "description": "Nom d'utilisateur à rechercher",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Résultats de recherche"
-          },
-          "401": {
-            "description": "Non authentifié"
-          }
-        },
-        "tags": [
-          "Users"
-        ]
-      },
-      "parameters": []
-    },
-    "/users/{id}": {
-      "get": {
-        "operationId": "users_read",
-        "description": "Affiche le profil public d’un utilisateur",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Profil trouvé"
-          },
-          "401": {
-            "description": "Non authentifié"
-          },
-          "404": {
-            "description": "Utilisateur non trouvé"
-          }
-        },
-        "tags": [
-          "Users"
+          "tags"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "tag_id",
           "in": "path",
           "required": true,
           "type": "string"
         }
       ]
     },
-    "/users/{id}/posts": {
-      "get": {
-        "operationId": "users_posts_list",
-        "description": "Posts d'un utilisateur",
-        "parameters": [],
+    "/users/": {
+      "post": {
+        "operationId": "users_create",
+        "description": "Create a new user account after Firebase authentication. Supports multipart/form-data for profile picture upload.",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.CreateUserSerializer"
+            }
+          }
+        ],
         "responses": {
-          "200": {
-            "description": "Liste des posts"
+          "201": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UserSerializer"
+            }
+          },
+          "400": {
+            "description": "Validation error"
           },
           "401": {
-            "description": "Non authentifié"
+            "description": "Not authenticated with Firebase"
           },
-          "404": {
-            "description": "Utilisateur non trouvé"
+          "409": {
+            "description": "User already exists"
           }
         },
         "tags": [
-          "Posts"
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/bulk/": {
+      "post": {
+        "operationId": "users_bulk_create",
+        "description": "Get multiple users by IDs",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UserBulkSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.users.serializers.UserPublicSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/me/": {
+      "get": {
+        "operationId": "users_me_list",
+        "description": "Get current user's full profile. Returns null if user not found in database.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UserSerializer"
+            }
+          },
+          "204": {
+            "description": "User authenticated but not found in database (returns null)"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/me/blocked/": {
+      "get": {
+        "operationId": "users_me_blocked_list",
+        "description": "Get list of blocked users",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.users.serializers.UserPublicSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/me/settings/": {
+      "patch": {
+        "operationId": "users_me_settings_partial_update",
+        "description": "Update current user's settings",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UpdateUserSettingsSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UpdateUserSettingsSerializer"
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/me/update/": {
+      "patch": {
+        "operationId": "users_me_update_partial_update",
+        "description": "Update current user's profile",
+        "parameters": [
+          {
+            "name": "data",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UpdateUserProfileSerializer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UserSerializer"
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/search/": {
+      "get": {
+        "operationId": "users_search_list",
+        "description": "Search users by username",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "type": "integer",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/apps.users.serializers.UserPublicSerializer"
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": []
+    },
+    "/users/{user_id}/": {
+      "get": {
+        "operationId": "users_read",
+        "description": "Get user's public profile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/apps.users.serializers.UserPublicSerializer"
+            }
+          }
+        },
+        "tags": [
+          "users"
         ]
       },
       "parameters": [
         {
-          "name": "id",
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/users/{user_id}/block/": {
+      "post": {
+        "operationId": "users_block_create",
+        "description": "Block a user",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "User blocked successfully"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    "/users/{user_id}/unblock/": {
+      "delete": {
+        "operationId": "users_unblock_delete",
+        "description": "Unblock a user",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "User unblocked successfully"
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "user_id",
           "in": "path",
           "required": true,
           "type": "string"
@@ -1387,5 +2293,1281 @@
       ]
     }
   },
-  "definitions": {}
+  "definitions": {
+    "AdminDomainCreateUpdateSerializer": {
+      "required": [
+        "domain_name"
+      ],
+      "type": "object",
+      "properties": {
+        "domain_name": {
+          "title": "Domain name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 3
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 1000
+        },
+        "icon_url": {
+          "title": "Icon url",
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "AdminReportSerializer": {
+      "type": "object",
+      "properties": {
+        "report_id": {
+          "title": "Report id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "reporter": {
+          "title": "Reporter",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "target_type": {
+          "title": "Target type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "target_id": {
+          "title": "Target id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "target_preview": {
+          "title": "Target preview",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "resolved_by": {
+          "title": "Resolved by",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "resolved_at": {
+          "title": "Resolved at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true
+        }
+      }
+    },
+    "AdminReportActionSerializer": {
+      "type": "object",
+      "properties": {
+        "action_taken": {
+          "title": "Action taken",
+          "type": "string",
+          "maxLength": 200
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "AdminActivityStatsSerializer": {
+      "required": [
+        "total_reports",
+        "pending_reports",
+        "resolved_reports",
+        "rejected_reports"
+      ],
+      "type": "object",
+      "properties": {
+        "total_reports": {
+          "title": "Total reports",
+          "type": "integer"
+        },
+        "pending_reports": {
+          "title": "Pending reports",
+          "type": "integer"
+        },
+        "resolved_reports": {
+          "title": "Resolved reports",
+          "type": "integer"
+        },
+        "rejected_reports": {
+          "title": "Rejected reports",
+          "type": "integer"
+        }
+      }
+    },
+    "AdminPostsStatsSerializer": {
+      "required": [
+        "total_posts",
+        "new_posts_today",
+        "new_posts_this_week",
+        "total_comments"
+      ],
+      "type": "object",
+      "properties": {
+        "total_posts": {
+          "title": "Total posts",
+          "type": "integer"
+        },
+        "new_posts_today": {
+          "title": "New posts today",
+          "type": "integer"
+        },
+        "new_posts_this_week": {
+          "title": "New posts this week",
+          "type": "integer"
+        },
+        "total_comments": {
+          "title": "Total comments",
+          "type": "integer"
+        }
+      }
+    },
+    "AdminUsersStatsSerializer": {
+      "required": [
+        "total_users",
+        "new_users_today",
+        "new_users_this_week",
+        "active_users_today",
+        "banned_users"
+      ],
+      "type": "object",
+      "properties": {
+        "total_users": {
+          "title": "Total users",
+          "type": "integer"
+        },
+        "new_users_today": {
+          "title": "New users today",
+          "type": "integer"
+        },
+        "new_users_this_week": {
+          "title": "New users this week",
+          "type": "integer"
+        },
+        "active_users_today": {
+          "title": "Active users today",
+          "type": "integer"
+        },
+        "banned_users": {
+          "title": "Banned users",
+          "type": "integer"
+        }
+      }
+    },
+    "apps.comments.serializers.CommentSerializer": {
+      "required": [
+        "content"
+      ],
+      "type": "object",
+      "properties": {
+        "comment_id": {
+          "title": "Comment id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "post_id": {
+          "title": "Post id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "author_id": {
+          "title": "Author id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "author_username": {
+          "title": "Author username",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "parent_comment_id": {
+          "title": "Parent comment id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.comments.serializers.CreateCommentSerializer": {
+      "required": [
+        "content"
+      ],
+      "type": "object",
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "maxLength": 2000,
+          "minLength": 1
+        },
+        "parent_comment_id": {
+          "title": "Parent comment id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "apps.domains.serializers.DomainSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "domain_id": {
+          "title": "Domain id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.domains.serializers.SubforumSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "subforum_id": {
+          "title": "Subforum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "parent_domain_id": {
+          "title": "Parent domain id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "parent_forum_id": {
+          "title": "Parent forum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.domains.serializers.CreateSubforumSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "parent_subforum_id": {
+          "title": "Parent subforum id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "apps.followers.serializers.UserFollowSerializer": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "title": "User id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "profile_picture_url": {
+          "title": "Profile picture url",
+          "type": "string",
+          "format": "uri",
+          "readOnly": true,
+          "minLength": 1
+        }
+      }
+    },
+    "apps.followers.serializers.FollowSerializer": {
+      "type": "object",
+      "properties": {
+        "follow_id": {
+          "title": "Follow id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "follower_id": {
+          "title": "Follower id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "following_id": {
+          "title": "Following id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "pending",
+            "accepted",
+            "refused"
+          ],
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.forums.serializers.ForumSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "forum_id": {
+          "title": "Forum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "creator_id": {
+          "title": "Creator id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "member_count": {
+          "title": "Member count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "post_count": {
+          "title": "Post count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.forums.serializers.CreateForumSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        }
+      }
+    },
+    "apps.posts.serializers.LikeSerializer": {
+      "type": "object",
+      "properties": {
+        "like_id": {
+          "title": "Like id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "user_id": {
+          "title": "User id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "post_id": {
+          "title": "Post id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.custom_messages.serializers.ConversationSerializer": {
+      "required": [
+        "other_user_id",
+        "other_user_username",
+        "last_message_at",
+        "unread_count"
+      ],
+      "type": "object",
+      "properties": {
+        "other_user_id": {
+          "title": "Other user id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "other_user_username": {
+          "title": "Other user username",
+          "type": "string",
+          "minLength": 1
+        },
+        "last_message_at": {
+          "title": "Last message at",
+          "type": "string",
+          "format": "date-time"
+        },
+        "unread_count": {
+          "title": "Unread count",
+          "type": "integer"
+        }
+      }
+    },
+    "apps.custom_messages.serializers.MessageSerializer": {
+      "type": "object",
+      "properties": {
+        "message_id": {
+          "title": "Message id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "sender_id": {
+          "title": "Sender id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "receiver_id": {
+          "title": "Receiver id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "encrypted_content_sender": {
+          "title": "Encrypted content sender",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "encrypted_content_receiver": {
+          "title": "Encrypted content receiver",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.custom_messages.serializers.SendMessageSerializer": {
+      "required": [
+        "content",
+        "sender_public_key",
+        "receiver_public_key"
+      ],
+      "type": "object",
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "maxLength": 5000,
+          "minLength": 1
+        },
+        "sender_public_key": {
+          "title": "Sender public key",
+          "type": "string",
+          "minLength": 1
+        },
+        "receiver_public_key": {
+          "title": "Receiver public key",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "apps.posts.serializers.CreatePostSerializer": {
+      "required": [
+        "title",
+        "content",
+        "subforum_id"
+      ],
+      "type": "object",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "maxLength": 10000,
+          "minLength": 1
+        },
+        "subforum_id": {
+          "title": "Subforum id",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "apps.posts.serializers.PostSerializer": {
+      "required": [
+        "title",
+        "content"
+      ],
+      "type": "object",
+      "properties": {
+        "post_id": {
+          "title": "Post id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "author_id": {
+          "title": "Author id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "author_username": {
+          "title": "Author username",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "subforum_id": {
+          "title": "Subforum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "content": {
+          "title": "Content",
+          "type": "string",
+          "maxLength": 10000,
+          "minLength": 1
+        },
+        "content_signature": {
+          "title": "Content signature",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "like_count": {
+          "title": "Like count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "comment_count": {
+          "title": "Comment count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.reports.serializers.CreateReportSerializer": {
+      "required": [
+        "target_type",
+        "target_id",
+        "reason"
+      ],
+      "type": "object",
+      "properties": {
+        "target_type": {
+          "title": "Target type",
+          "type": "string",
+          "enum": [
+            "post",
+            "comment",
+            "user"
+          ]
+        },
+        "target_id": {
+          "title": "Target id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        }
+      }
+    },
+    "ReportsReportSerializer": {
+      "type": "object",
+      "properties": {
+        "report_id": {
+          "title": "Report id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "reporter_id": {
+          "title": "Reporter id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "target_type": {
+          "title": "Target type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "target_id": {
+          "title": "Target id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "resolved_at": {
+          "title": "Resolved at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true
+        }
+      }
+    },
+    "apps.subforums.serializers.SubforumSerializer": {
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "subforum_id": {
+          "title": "Subforum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "maxLength": 1000
+        },
+        "parent_domain_id": {
+          "title": "Parent domain id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "parent_forum_id": {
+          "title": "Parent forum id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "post_count": {
+          "title": "Post count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.subforums.serializers.PostSummarySerializer": {
+      "required": [
+        "title"
+      ],
+      "type": "object",
+      "properties": {
+        "post_id": {
+          "title": "Post id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "user_id": {
+          "title": "User id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "title": {
+          "title": "Title",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1
+        },
+        "like_count": {
+          "title": "Like count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "comment_count": {
+          "title": "Comment count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.tags.serializers.TagSerializer": {
+      "required": [
+        "tag_name"
+      ],
+      "type": "object",
+      "properties": {
+        "tag_id": {
+          "title": "Tag id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "tag_name": {
+          "title": "Tag name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "creator_id": {
+          "title": "Creator id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.tags.serializers.AssignTagsSerializer": {
+      "required": [
+        "tags"
+      ],
+      "type": "object",
+      "properties": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "apps.tags.serializers.CreateTagSerializer": {
+      "required": [
+        "tag_name"
+      ],
+      "type": "object",
+      "properties": {
+        "tag_name": {
+          "title": "Tag name",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        }
+      }
+    },
+    "apps.users.serializers.CreateUserSerializer": {
+      "required": [
+        "username"
+      ],
+      "type": "object",
+      "properties": {
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "maxLength": 30,
+          "minLength": 1
+        },
+        "profile_picture": {
+          "title": "Profile picture",
+          "type": "string",
+          "readOnly": true,
+          "x-nullable": true,
+          "format": "uri"
+        },
+        "bio": {
+          "title": "Bio",
+          "type": "string",
+          "default": "",
+          "maxLength": 500
+        },
+        "location": {
+          "title": "Location",
+          "type": "string",
+          "default": "",
+          "maxLength": 100
+        },
+        "privacy": {
+          "title": "Privacy",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "apps.users.serializers.UserProfileSerializer": {
+      "required": [
+        "display_name",
+        "privacy"
+      ],
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "profile_picture_url": {
+          "title": "Profile picture url",
+          "type": "string",
+          "format": "uri"
+        },
+        "bio": {
+          "title": "Bio",
+          "type": "string",
+          "maxLength": 500
+        },
+        "location": {
+          "title": "Location",
+          "type": "string",
+          "maxLength": 100
+        },
+        "privacy": {
+          "title": "Privacy",
+          "type": "string",
+          "enum": [
+            "public",
+            "private"
+          ]
+        }
+      }
+    },
+    "apps.users.serializers.UserSettingsSerializer": {
+      "required": [
+        "email_notifications",
+        "language"
+      ],
+      "type": "object",
+      "properties": {
+        "email_notifications": {
+          "title": "Email notifications",
+          "type": "boolean"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string",
+          "enum": [
+            "fr",
+            "en"
+          ]
+        }
+      }
+    },
+    "apps.users.serializers.UserSerializer": {
+      "required": [
+        "username"
+      ],
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "title": "User id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "maxLength": 30,
+          "minLength": 1
+        },
+        "is_admin": {
+          "title": "Is admin",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "is_banned": {
+          "title": "Is banned",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "last_login_at": {
+          "title": "Last login at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "profile": {
+          "$ref": "#/definitions/apps.users.serializers.UserProfileSerializer"
+        },
+        "settings": {
+          "$ref": "#/definitions/apps.users.serializers.UserSettingsSerializer"
+        }
+      }
+    },
+    "apps.users.serializers.UserBulkSerializer": {
+      "required": [
+        "user_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "user_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 100
+        }
+      }
+    },
+    "apps.users.serializers.UserPublicSerializer": {
+      "required": [
+        "username",
+        "display_name"
+      ],
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "title": "User id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "maxLength": 30,
+          "minLength": 1
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "profile_picture_url": {
+          "title": "Profile picture url",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "bio": {
+          "title": "Bio",
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "location": {
+          "title": "Location",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "apps.users.serializers.UpdateUserSettingsSerializer": {
+      "type": "object",
+      "properties": {
+        "email_notifications": {
+          "title": "Email notifications",
+          "type": "boolean"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string",
+          "enum": [
+            "fr",
+            "en"
+          ]
+        }
+      }
+    },
+    "apps.users.serializers.UpdateUserProfileSerializer": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "maxLength": 30,
+          "minLength": 1
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "profile_picture_url": {
+          "title": "Profile picture url",
+          "type": "string",
+          "format": "uri"
+        },
+        "bio": {
+          "title": "Bio",
+          "type": "string",
+          "maxLength": 500
+        },
+        "location": {
+          "title": "Location",
+          "type": "string",
+          "maxLength": 100
+        },
+        "privacy": {
+          "title": "Privacy",
+          "type": "string",
+          "enum": [
+            "public",
+            "private"
+          ]
+        }
+      }
+    }
+  }
 }
