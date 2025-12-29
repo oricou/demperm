@@ -44,7 +44,7 @@ class CurrentUserView(APIView):
         
         # Firebase authenticated but user not in database
         if hasattr(request, 'firebase_uid'):
-            return Response(None, status=status.HTTP_200_OK)
+            return Response(data=None, status=status.HTTP_200_OK)
         
         # No authentication
         return Response(
@@ -90,16 +90,15 @@ class CreateUserView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
         
-        # If the request already carries a persisted user instance (i.e. a
-        # user loaded from the DB), treat it as "already registered". Tests
-        # may `force_authenticate` with a transient User instance (unsaved),
-        # so check the model _state to distinguish persisted objects.
-        if request.user and getattr(getattr(request.user, '_state', None), 'adding', False) is False:
+        # Check directly in PostgreSQL if user already exists by firebase_uid
+        # This is more reliable than checking request.user state
+        from db.entities.user_entity import User
+        if User.objects.filter(firebase_uid=request.firebase_uid).exists():
             return Response(
                 {'error': {'code': 'CONFLICT', 'message': 'User already registered'}},
                 status=status.HTTP_409_CONFLICT
             )
-        
+
         serializer = CreateUserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
