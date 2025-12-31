@@ -34,8 +34,7 @@ class VoteView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        user = getattr(request, "user", None)
-        voter_id = getattr(user, "id", None)
+        voter_id = request.user.id
 
         if voter_id is None:
             return Response(
@@ -78,8 +77,7 @@ class VoteDeleteView(APIView):
         description="Supprime le vote de l'utilisateur authentifié pour un domaine."
     )
     def delete(self, request, domain: str):
-        user = getattr(request, "user", None)
-        voter_id = getattr(user, "id", None)
+        voter_id = request.user.id
 
         if voter_id is None:
             return Response(
@@ -127,13 +125,6 @@ class VotesByVoterView(APIView):
         description="Retourne la liste des votes effectués par un utilisateur donné."
     )
     def get(self, request, voterId: str):
-        user = getattr(request, "user", None)
-        if getattr(user, "id", None) is None:
-            return Response(
-                {"error": "Unauthorized"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
         domain = request.query_params.get("domain")
 
         votes = VoteService.get_votes_by_voter(
@@ -165,8 +156,7 @@ class VotesByVoterMeView(APIView):
         description="Retourne la liste des votes effectués par l'utilisateur authentifié."
     )
     def get(self, request):
-        user = getattr(request, "user", None)
-        voter_id = getattr(user, "id", None)
+        voter_id = request.user.id
 
         if voter_id is None:
             return Response(
@@ -179,6 +169,7 @@ class VotesByVoterMeView(APIView):
         votes = VoteService.get_votes_by_voter(
             voter_id=str(voter_id),
             domain=domain,
+            is_me=True,
         )
 
         serializer = VoteSerializer(votes, many=True)
@@ -211,13 +202,6 @@ class VotesForUserView(APIView):
         description="Retourne les votes reçus par un utilisateur."
     )
     def get(self, request, userId: str):
-        user = getattr(request, "user", None)
-        if getattr(user, "id", None) is None:
-            return Response(
-                {"error": "Unauthorized"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
         domain = request.query_params.get("domain")
 
         received_votes = VoteService.get_received_votes(
@@ -249,8 +233,7 @@ class VotesForUserMeView(APIView):
         description="Retourne les votes reçus par l'utilisateur authentifié."
     )
     def get(self, request):
-        user = getattr(request, "user", None)
-        user_id = getattr(user, "id", None)
+        user_id = request.user.id
 
         if user_id is None:
             return Response(
@@ -278,6 +261,6 @@ class VoteValidationView(APIView):
         responses={200: OpenApiResponse(description="Validation exécutée")},
         description="Force l'exécution de la tâche quotidienne de validation des votes."
     )
-    def get(self):
+    def get(self, _):
         VoteValidationService.process_daily_votes()
         return Response(status=status.HTTP_200_OK)

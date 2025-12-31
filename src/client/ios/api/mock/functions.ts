@@ -15,8 +15,12 @@ export const getFeed = function () {
     return db.posts;
 }
 
-export const getPost = function (id: number) {
+export const getPost = function (id: string) {
     return db.fullPosts.find(post => post.post.id == id);
+}
+
+export const getCommentsReplies = function(commentId: string) {
+    return db.commentsByPostId.filter(comment => comment.parent_comment_id === commentId);
 }
 
 export const getForYouPage = function () {
@@ -43,6 +47,14 @@ export const getDomains = function () {
 
 export const getForums = function (id: number) {
     return db.forums.filter(forum => forum.domains.find(domain => domain.id == id));
+}
+
+export const searchInForums = function (query: string) {
+    return db.forums.filter(forum => forum.description.includes(query) || forum.title.includes(query));
+}
+
+export const discoverUsers = function () {
+    return db.profiles;
 }
 
 export const getForum = function (id: number) {

@@ -1,6 +1,7 @@
 """
 User repository for data access.
 """
+
 from typing import Optional, List
 from django.db.models import Q
 from db.entities.user_entity import User, UserProfile, UserSettings, Block, Follow
@@ -42,10 +43,22 @@ class UserRepository:
             return None
     
     @staticmethod
-    def create(firebase_uid: str, email: str, username: str) -> User:
-        """Create a new user with profile and settings."""
+    def create(email: str, username: str, firebase_uid: str = None, firebase_id: str = None) -> User:
+        """Create a new user with profile and settings.
+
+        Args:
+            email: User's email address
+            username: User's username
+            firebase_uid: Firebase UID (preferred parameter name)
+            firebase_id: Alias for firebase_uid (for backward compatibility)
+        """
+        # Accept both firebase_uid and firebase_id as parameter names
+        uid = firebase_uid or firebase_id
+        if not uid:
+            raise ValueError("Either firebase_uid or firebase_id must be provided")
+
         user = User.objects.create(
-            firebase_uid=firebase_uid,
+            firebase_uid=uid,
             email=email,
             username=username
         )
@@ -62,12 +75,13 @@ class UserRepository:
         return user
     
     @staticmethod
-    def search_by_username(query: str, limit: int = 20) -> List[User]:
+    def search_by_username(query: str, page: int = 1, page_size: int = 20) -> List[User]:
         """Search users by username (case-insensitive)."""
+        offset = (page - 1) * page_size
         return User.objects.filter(
             username__icontains=query,
             is_banned=False
-        ).select_related('profile')[:limit]
+        ).select_related('profile')[offset:offset + page_size]
     
     @staticmethod
     def get_bulk(user_ids: List[str]) -> List[User]:
@@ -98,10 +112,11 @@ class BlockRepository:
         return Block.objects.filter(blocker_id=blocker_id, blocked_id=blocked_id).exists()
     
     @staticmethod
-    def get_blocked_users(blocker_id: str, page: int = 1, page_size: int = 20) -> List[Block]:
-        """Get list of blocked users."""
+    def get_blocked_users(blocker_id: str, page: int = 1, page_size: int = 20) -> List[User]:
+        """Get list of blocked users (returns User objects)."""
         offset = (page - 1) * page_size
-        return Block.objects.filter(blocker_id=blocker_id).select_related('blocked')[offset:offset + page_size]
+        blocks = Block.objects.filter(blocker_id=blocker_id).select_related('blocked', 'blocked__profile')[offset:offset + page_size]
+        return [block.blocked for block in blocks]
 
 
 class FollowRepository:
@@ -134,28 +149,41 @@ class FollowRepository:
             return None
     
     @staticmethod
-    def get_followers(user_id: str, status: str = 'accepted', page: int = 1, page_size: int = 20) -> List[Follow]:
-        """Get user's followers."""
+    def get_followers(user_id: str, status: str = 'accepted', page: int = 1, page_size: int = 20) -> List[User]:
+        """Get user's followers (returns User objects)."""
         offset = (page - 1) * page_size
-        return Follow.objects.filter(
+        follows = Follow.objects.filter(
             following_id=user_id,
             status=status
-        ).select_related('follower')[offset:offset + page_size]
-    
+        ).select_related('follower', 'follower__profile')[offset:offset + page_size]
+        return [follow.follower for follow in follows]
+
     @staticmethod
-    def get_following(user_id: str, status: str = 'accepted', page: int = 1, page_size: int = 20) -> List[Follow]:
-        """Get users that user is following."""
+    def get_following(user_id: str, status: str = 'accepted', page: int = 1, page_size: int = 20) -> List[User]:
+        """Get users that user is following (returns User objects)."""
         offset = (page - 1) * page_size
-        return Follow.objects.filter(
+        follows = Follow.objects.filter(
             follower_id=user_id,
             status=status
-        ).select_related('following')[offset:offset + page_size]
-    
+        ).select_related('following', 'following__profile')[offset:offset + page_size]
+        return [follow.following for follow in follows]
+
     @staticmethod
-    def get_pending_requests(user_id: str) -> List[Follow]:
+    def get_follow(viewer_id:str,followed_id:str):
+        follw = Follow.objects.filter(
+            follower_id=viewer_id,
+            following_id=followed_id
+        )
+        if len(follw) == 0:
+            return None
+        return follw[0]
+
+    @staticmethod
+    def get_pending_requests(user_id: str, page: int = 1, page_size: int = 20) -> List[Follow]:
         """Get pending follow requests for user."""
+        offset = (page - 1) * page_size
         return Follow.objects.filter(
             following_id=user_id,
             status='pending'
-        ).select_related('follower')
+        ).select_related('follower', 'follower__profile')[offset:offset + page_size]
 

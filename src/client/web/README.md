@@ -21,3 +21,15 @@ npm run createdoc
 
 The documentation will be found at [./docs/client/web/docs](../../../docs/client/web/docs/index.html)
 
+This is not an user guide but only a technical documentation.
+The user guide is at [./docs/client/web/demperm_userguide_fr.pdf](../../../docs/client/web/demperm_userguide_fr.pdf).
+
+To open the documentation, you can :
+
+In a bash terminal : 
+
+```bash
+browse index.html
+```
+
+In a file Explorer : Right click + Open with + your favorite Navigator

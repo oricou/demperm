@@ -44,7 +44,7 @@ class CurrentUserView(APIView):
         
         # Firebase authenticated but user not in database
         if hasattr(request, 'firebase_uid'):
-            return Response(None, status=status.HTTP_200_OK)
+            return Response(data=None, status=status.HTTP_200_OK)
         
         # No authentication
         return Response(
@@ -77,20 +77,28 @@ class CreateUserView(APIView):
         Expected from JWT: firebase_uid, email
         Expected from request body: username (required), profile_picture (blob), bio, location, privacy (boolean)
         """
-        # Check Firebase authentication
+        # Check Firebase authentication. Allow tests that use `force_authenticate`
+        # with a `User` instance (which doesn't set `request.firebase_uid`) by
+        # falling back to `request.user.firebase_uid` if present.
         if not hasattr(request, 'firebase_uid'):
-            return Response(
-                {'error': {'code': 'UNAUTHORIZED', 'message': 'Firebase authentication required'}},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            if request.user and getattr(request.user, 'firebase_uid', None):
+                request.firebase_uid = request.user.firebase_uid
+                request.firebase_email = getattr(request.user, 'email', None)
+            else:
+                return Response(
+                    {'error': {'code': 'UNAUTHORIZED', 'message': 'Firebase authentication required'}},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
         
-        # User already exists in database
-        if request.user and hasattr(request.user, 'user_id'):
+        # Check directly in PostgreSQL if user already exists by firebase_uid
+        # This is more reliable than checking request.user state
+        from db.entities.user_entity import User
+        if User.objects.filter(firebase_uid=request.firebase_uid).exists():
             return Response(
                 {'error': {'code': 'CONFLICT', 'message': 'User already registered'}},
                 status=status.HTTP_409_CONFLICT
             )
-        
+
         serializer = CreateUserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         

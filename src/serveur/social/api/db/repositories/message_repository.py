@@ -1,7 +1,7 @@
 """
 Message and Report repository for data access.
 """
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from django.db.models import Q
 from db.entities.message_entity import Message, Report, AuditLog
 
@@ -23,32 +23,44 @@ class MessageRepository:
     
     @staticmethod
     def get_conversation(user1_id: str, user2_id: str, page: int = 1, page_size: int = 20) -> List[Message]:
-        """Get messages between two users."""
+        """Get messages between two users (excluding deleted ones)."""
         offset = (page - 1) * page_size
         return Message.objects.filter(
-            Q(sender_id=user1_id, receiver_id=user2_id) |
-            Q(sender_id=user2_id, receiver_id=user1_id)
+            Q(sender_id=user1_id, receiver_id=user2_id, deleted_by_sender=False) |
+            Q(sender_id=user2_id, receiver_id=user1_id, deleted_by_receiver=False)
         ).select_related('sender', 'receiver').order_by('-created_at')[offset:offset + page_size]
     
     @staticmethod
-    def get_conversations(user_id: str) -> List[dict]:
-        """Get list of conversations for user."""
-        # Get unique conversation partners
-        sent = Message.objects.filter(sender_id=user_id).values_list('receiver_id', flat=True).distinct()
-        received = Message.objects.filter(receiver_id=user_id).values_list('sender_id', flat=True).distinct()
+    def get_conversations(user_id: str, page: int = 1, page_size: int = 20) -> List[dict]:
+        """Get list of conversations for user (excluding deleted ones)."""
+        # Get unique conversation partners (excluding fully deleted conversations)
+        sent = Message.objects.filter(
+            sender_id=user_id,
+            deleted_by_sender=False
+        ).values_list('receiver_id', flat=True).distinct()
+        
+        received = Message.objects.filter(
+            receiver_id=user_id,
+            deleted_by_receiver=False
+        ).values_list('sender_id', flat=True).distinct()
+        
         partner_ids = set(list(sent) + list(received))
         
         conversations = []
         for partner_id in partner_ids:
             last_message = Message.objects.filter(
-                Q(sender_id=user_id, receiver_id=partner_id) |
-                Q(sender_id=partner_id, receiver_id=user_id)
+                Q(sender_id=user_id, receiver_id=partner_id, deleted_by_sender=False) |
+                Q(sender_id=partner_id, receiver_id=user_id, deleted_by_receiver=False)
             ).select_related('sender', 'receiver').order_by('-created_at').first()
+            
+            if not last_message:
+                continue
             
             unread_count = Message.objects.filter(
                 sender_id=partner_id,
                 receiver_id=user_id,
-                is_read=False
+                is_read=False,
+                deleted_by_receiver=False
             ).count()
             
             conversations.append({
@@ -63,6 +75,34 @@ class MessageRepository:
     def mark_as_read(sender_id: str, receiver_id: str) -> None:
         """Mark messages as read."""
         Message.objects.filter(sender_id=sender_id, receiver_id=receiver_id, is_read=False).update(is_read=True)
+    
+    @staticmethod
+    def mark_conversation_as_deleted(user_id: str, other_user_id: str) -> int:
+        """
+        Mark all messages in a conversation as deleted for the current user.
+        
+        Args:
+            user_id: Current user ID
+            other_user_id: Other user ID
+            
+        Returns:
+            Number of messages updated
+        """
+        # Mark messages where user is sender
+        count_sender = Message.objects.filter(
+            sender_id=user_id,
+            receiver_id=other_user_id,
+            deleted_by_sender=False
+        ).update(deleted_by_sender=True)
+        
+        # Mark messages where user is receiver
+        count_receiver = Message.objects.filter(
+            sender_id=other_user_id,
+            receiver_id=user_id,
+            deleted_by_receiver=False
+        ).update(deleted_by_receiver=True)
+        
+        return count_sender + count_receiver
 
 
 class ReportRepository:
@@ -72,12 +112,38 @@ class ReportRepository:
     def create(reporter_id: str, target_type: str, target_id: str, reason: str, 
                description: Optional[str] = None) -> Report:
         """Create a new report."""
+        # Normalize reason to one of the short choice keys to avoid DB varchar limits.
+        # If the incoming reason is free-text, try to map it to a known keyword
+        # (spam, harassment, inappropriate, misinformation). Otherwise store
+        # the full text in `description` and use 'other' as the reason.
+        orig_reason = (reason or '').strip()
+        reason_lower = orig_reason.lower()
+        known_reasons = ['spam', 'harassment', 'inappropriate', 'misinformation', 'other']
+
+        selected_reason = None
+        for kr in known_reasons:
+            if kr in reason_lower:
+                selected_reason = kr
+                break
+
+        stored_description = description
+        if selected_reason is None:
+            # No keyword match — store as 'other' and preserve text in description
+            selected_reason = 'other'
+            # prefer provided description if any, otherwise store original reason
+            if not stored_description:
+                stored_description = orig_reason if orig_reason else None
+        else:
+            # If the original reason is longer than the short key, preserve it in description
+            if orig_reason and orig_reason != selected_reason:
+                stored_description = orig_reason if not stored_description else stored_description
+
         return Report.objects.create(
             reporter_id=reporter_id,
             target_type=target_type,
             target_id=target_id,
-            reason=reason,
-            description=description
+            reason=selected_reason,
+            description=stored_description
         )
     
     @staticmethod
@@ -89,13 +155,16 @@ class ReportRepository:
             return None
     
     @staticmethod
-    def get_all(status: Optional[str] = None, page: int = 1, page_size: int = 20) -> List[Report]:
-        """Get all reports, optionally filtered by status."""
+    def get_all(status: Optional[str] = None, page: int = 1, page_size: int = 20) -> Tuple[List[Report], int]:
+        """Get all reports, optionally filtered by status. Returns (reports, total_count)."""
         offset = (page - 1) * page_size
         query = Report.objects.select_related('reporter', 'resolved_by')
         if status:
             query = query.filter(status=status)
-        return query.order_by('-created_at')[offset:offset + page_size]
+        total = query.count()
+        # Return a list so callers can use Python indexing (including negative indices)
+        reports_qs = query.order_by('-created_at')[offset:offset + page_size]
+        return list(reports_qs), total
     
     @staticmethod
     def update_status(report_id: str, status: str, resolved_by_id: Optional[str] = None) -> Optional[Report]:
@@ -122,14 +191,26 @@ class AuditLogRepository:
                resource_id: Optional[str] = None, details: Optional[str] = None,
                ip_address: Optional[str] = None) -> AuditLog:
         """Create a new audit log entry."""
-        return AuditLog.objects.create(
+        # Ensure resource_id is stored as a string for consistent comparisons
+        stored_resource_id = str(resource_id) if resource_id is not None else None
+        print('DEBUG: AuditLogRepository.create called with resource_id=', repr(resource_id), 'stored=', repr(stored_resource_id))
+        audit = AuditLog.objects.create(
             user_id=user_id,
             action_type=action_type,
             resource_type=resource_type,
-            resource_id=resource_id,
+            resource_id=stored_resource_id,
             details=details,
             ip_address=ip_address
         )
+        # Force-update DB row in case of type mismatches and re-fetch
+        try:
+            AuditLog.objects.filter(log_id=audit.log_id).update(resource_id=stored_resource_id)
+            refreshed = AuditLog.objects.get(log_id=audit.log_id)
+            print('DEBUG: created audit resource_id repr after create:', repr(getattr(refreshed, '__dict__', {}).get('resource_id')))
+            return refreshed
+        except Exception as e:
+            print('DEBUG: audit create/refresh exception', e)
+            return audit
     
     @staticmethod
     def get_by_user(user_id: str, page: int = 1, page_size: int = 20) -> List[AuditLog]:

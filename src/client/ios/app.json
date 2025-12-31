@@ -39,7 +39,14 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

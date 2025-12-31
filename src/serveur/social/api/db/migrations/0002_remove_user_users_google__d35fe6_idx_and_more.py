@@ -34,6 +34,14 @@ class Migration(migrations.Migration):
             name='location',
             field=models.CharField(blank=True, default='', max_length=100),
         ),
+        migrations.RunSQL(
+            sql="""
+            UPDATE user_profiles SET privacy = (privacy = 'public');
+            """,
+            reverse_sql="""
+            UPDATE user_profiles SET privacy = CASE WHEN privacy THEN 'public' ELSE 'private' END;
+            """,
+        ),
         migrations.AlterField(
             model_name='userprofile',
             name='privacy',

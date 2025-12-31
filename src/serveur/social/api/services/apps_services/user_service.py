@@ -178,6 +178,17 @@ class UserService:
                 value = kwargs[field]
                 if field == 'bio':
                     value = Validator.validate_bio(value)
+                # Accept 'public'/'private' strings from API/tests and convert
+                if field == 'privacy':
+                    # Normalize boolean or string into the database representation
+                    if isinstance(value, bool):
+                        # store boolean directly
+                        value = bool(value)
+                    elif isinstance(value, str):
+                        # accept 'public'/'private' strings from API/tests
+                        value = True if value == 'public' else False
+                    else:
+                        value = bool(value)
                 setattr(user.profile, field, value)
                 profile_updated = True
         
@@ -199,12 +210,25 @@ class UserService:
     def update_user_settings(user_id: str, **kwargs) -> UserSettings:
         """Update user settings."""
         user = UserService.get_user_by_id(user_id)
-        
-        settings_fields = ['email_notifications', 'language']
-        for field in settings_fields:
-            if field in kwargs:
-                setattr(user.settings, field, kwargs[field])
-        
+        # Support both new and legacy field names used by tests/APIs.
+        # Map legacy keys to internal model fields.
+        if 'privacy_profile' in kwargs:
+            user.settings.privacy_profile = kwargs.get('privacy_profile')
+        if 'privacy_posts' in kwargs:
+            user.settings.privacy_posts = kwargs.get('privacy_posts')
+
+        # Notification flags
+        if 'notifications_enabled' in kwargs:
+            user.settings.notifications_enabled = kwargs.get('notifications_enabled')
+        if 'notifications_email' in kwargs:
+            user.settings.notifications_email = kwargs.get('notifications_email')
+
+        # Backwards-compatible names
+        if 'email_notifications' in kwargs:
+            user.settings.email_notifications = kwargs.get('email_notifications')
+        if 'language' in kwargs:
+            user.settings.language = kwargs.get('language')
+
         user.settings.save()
         return user.settings
     
@@ -240,14 +264,19 @@ class UserService:
         """Block a user."""
         if blocker_id == blocked_id:
             raise ValidationError("Cannot block yourself")
-        
-        # Check if already blocked
+
+        # Check if user to block exists
+        blocked_user = UserRepository.get_by_id(blocked_id)
+        if not blocked_user:
+            raise NotFoundError(f"User {blocked_id} not found")
+
+        # Check if already blocked (idempotent - just return if already blocked)
         if BlockRepository.is_blocked(blocker_id, blocked_id):
-            raise ConflictError("User already blocked")
-        
+            return  # Already blocked, operation is idempotent
+
         # Create block
         BlockRepository.create(blocker_id, blocked_id)
-        
+
         # Audit log
         AuditLogRepository.create(
             user_id=blocker_id,
@@ -301,7 +330,8 @@ class UserService:
         target_user = UserService.get_user_by_id(target_user_id)
 
         # Public profiles are always visible
-        if target_user.profile.privacy == 'public':
+        # privacy=True means public, privacy=False means private
+        if target_user.profile.privacy == True:
             return True
 
         # Not authenticated cannot view private profiles

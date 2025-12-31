@@ -1,9 +1,10 @@
 import React, { memo } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
+import {Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import { useThemeContext } from '@/contexts/theme-context';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { fontFamily } from '@/stories/utils';
 import { Button } from './Button';
+import {RelativePathString, router} from "expo-router";
 
 export type ProfileCardProps = {
     username: string;
@@ -24,12 +25,19 @@ export const ProfileCard: React.FC<ProfileCardProps> = memo(
         const { colorScheme } = useThemeContext();
         const palette = Colors[colorScheme];
 
+        function handleOpenProfile(){
+            //FIXME open profile tab if it's the actual connected user
+            router.push({pathname: `/(tabs)/research/profile/[id]`,
+                    params: { id: "id" }});/* FIXME with userID*/
+        }
+
         return (
-            <View
+            <TouchableOpacity
                 style={[
                     styles.card,
                     { backgroundColor: palette.primary, borderRadius: Spacing.borderRadius },
                 ]}
+                onPress={handleOpenProfile}
             >
                 <View style={styles.bannerWrapper}>
                     {bannerUri ? (
@@ -70,37 +78,38 @@ export const ProfileCard: React.FC<ProfileCardProps> = memo(
                             {username}
                         </Text>
                     </View>
+                    <View style={styles.bottomContent}>
+                        <Text
+                            style={[
+                                styles.description,
+                                { color: palette.text, opacity: 0.9, fontFamily },
+                            ]}
+                            numberOfLines={3}
+                            ellipsizeMode="tail"
+                        >
+                            {description}
+                        </Text>
 
-                    <Text
-                        style={[
-                            styles.description,
-                            { color: palette.text, opacity: 0.9, fontFamily },
-                        ]}
-                        numberOfLines={3}
-                        ellipsizeMode="tail"
-                    >
-                        {description}
-                    </Text>
+                        <Text
+                            style={[
+                                styles.votes,
+                                { color: palette.highlight1, fontFamily },
+                            ]}
+                        >
+                            {votes} Votes
+                        </Text>
 
-                    <Text
-                        style={[
-                            styles.votes,
-                            { color: palette.highlight1, fontFamily },
-                        ]}
-                    >
-                        {votes} Votes
-                    </Text>
-
-                    <Button
-                        icon="person-add"
-                        label="Suivre"
-                        backgroundColor="highlight1"
-                        size="large"
-                        style={styles.followBtn}
-                        onPress={onPressFollow}
-                    />
+                        <Button
+                            icon="person-add"
+                            label="Suivre"
+                            backgroundColor="highlight1"
+                            size="large"
+                            style={styles.followBtn}
+                            onPress={onPressFollow}
+                        />
+                    </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     }
 );
@@ -127,6 +136,7 @@ const styles = StyleSheet.create({
         padding: Spacing.padding,
         paddingTop: Spacing.padding - 6,
         gap: 10,
+        flex: 1
     },
 
     topRow: {
@@ -167,4 +177,10 @@ const styles = StyleSheet.create({
         alignSelf: 'stretch',
         justifyContent: 'center',
     },
+    bottomContent: {
+        display: "flex",
+        flex: 1,
+        flexDirection: "column",
+        justifyContent: "space-between",
+    }
 });

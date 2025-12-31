@@ -19,10 +19,14 @@ export function AppShell({ children }) {
       <div className="h-2 w-screen bg-[linear-gradient(90deg,_#1e3a8a_0%,_#1e3a8a_33%,_#ffffff_33%,_#ffffff_66%,_#c62828_66%,_#c62828_100%)] shadow-sm" />
       <header className="w-screen border-b border-border bg-white/90 backdrop-blur">
         <div className="flex w-full items-center justify-between gap-4 px-10 py-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-muted">Demperm</p>
-            <h1 className="text-xl font-semibold text-foreground">Expérience citoyenne</h1>
-          </div>
+          <NavLink to="/profil" className="group inline-block">
+            <p className="text-sm uppercase tracking-[0.2em] text-muted group-hover:text-primary">
+              Demperm
+            </p>
+            <h1 className="text-xl font-semibold text-foreground group-hover:text-primary">
+              Expérience citoyenne
+            </h1>
+          </NavLink>
           <nav className="flex gap-2">
             {navItems.map((item) => (
               <NavLink

@@ -3,5 +3,5 @@ import {SimplePost} from "@/api/types/common/simple-post";
 
 export class FullForum {
     forum!: SimpleForum;
-    posts!: SimplePost[];
+    posts!: SimplePost[]; 
 }
