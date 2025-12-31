@@ -1,65 +1,104 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    StyleProp,
+    ViewStyle,
+    ImageBackground,
+} from 'react-native';
 import { useThemeContext } from '@/contexts/theme-context';
 import { Colors } from '@/constants/theme';
-import {fontFamily, iconVariants} from '@/stories/utils';
+import { fontFamily } from '@/stories/utils';
+
+export type DomainBackground =
+    | 'Culture'
+    | 'Education'
+    | 'Emploi'
+    | 'Environnement'
+    | 'Numerique'
+    | 'Sante'
+    | 'Securite'
+    | 'Sport'
+    | 'Transport';
+
+const DOMAIN_IMAGES = {
+    Culture: require('../assets/Domains/Culture.png'),
+    Education: require('../assets/Domains/Education.png'),
+    Emploi: require('../assets/Domains/Emploi.png'),
+    Environnement: require('../assets/Domains/Environnement.png'),
+    Numerique: require('../assets/Domains/Numerique.png'),
+    Sante: require('../assets/Domains/Sante.png'),
+    Securite: require('../assets/Domains/Securite.png'),
+    Sport: require('../assets/Domains/Sport.png'),
+    Transport: require('../assets/Domains/Transport.png'),
+} as const;
+
+const DOMAIN_ASPECT_RATIO = 1576 / 495;
 
 export interface DomainProps {
-    /** Icône Ionicon à gauche */
-    icon: iconVariants;
-    /** Titre à afficher */
     label: string;
-    /** Action au clic */
+    background: DomainBackground;
     onPress?: () => void;
-    /** Epaisseur du composant*/
-    thickness?: number;
-    /** Style personnalisé */
+    textColor?: string;
     style?: StyleProp<ViewStyle>;
 }
 
-/** Carte Domain — icône + texte + chevron à droite */
-export const Domain = ({ icon, label, onPress, thickness = 16   , style }: DomainProps) => {
+export const Domain = ({ label, background, onPress, textColor, style }: DomainProps) => {
     const { colorScheme } = useThemeContext();
-    const textColor = Colors[colorScheme].text;
-    const borderColor = Colors[colorScheme].highlight1;
-    const backgroundColor = Colors[colorScheme].primary;
+    const defaultTextColor = Colors[colorScheme].text;
 
     return (
         <TouchableOpacity
             activeOpacity={onPress ? 0.7 : 1}
             onPress={onPress}
             accessibilityRole="button"
-            style={[styles.container, { borderColor, backgroundColor, paddingVertical: thickness }, style]}
+            style={[styles.container, style, { aspectRatio: DOMAIN_ASPECT_RATIO }]}
         >
-            {/* Partie gauche : icône + label */}
-            <View style={styles.leftSection}>
-                <Ionicons name={icon} size={20} color={textColor} />
-                <Text style={[styles.label, { color: textColor, fontFamily }]}>{label}</Text>
-            </View>
-
-            {/* Chevron à droite */}
-            <Ionicons name="chevron-forward" size={20} color={textColor} />
+            <ImageBackground
+                source={DOMAIN_IMAGES[background]}
+                resizeMode="cover"
+                style={styles.bg}          // ✅ force fill
+                imageStyle={styles.bgImg}  // ✅ force fill
+            >
+                <View style={styles.center}>
+                    <Text
+                        numberOfLines={2}
+                        style={[styles.label, { color: textColor ?? defaultTextColor, fontFamily }]}
+                    >
+                        {label}
+                    </Text>
+                </View>
+            </ImageBackground>
         </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        width: '100%',          // ✅ responsive width by default
         borderRadius: 16,
-        padding: 16,
+        overflow: 'hidden',
     },
-    leftSection: {
-        flexDirection: 'row',
+    bg: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+    },
+    bgImg: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
+    },
+    center: {
+        paddingHorizontal: 16,
         alignItems: 'center',
-        gap: 10,
-        flex: 1
+        justifyContent: 'center',
     },
     label: {
-        fontSize: 16,
-        flexShrink: 1,
+        fontSize: 18,
+        fontWeight: '700',
+        textAlign: 'center',
     },
 });

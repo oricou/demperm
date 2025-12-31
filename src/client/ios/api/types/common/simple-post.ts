@@ -7,13 +7,15 @@ export class Media {
 }
 
 export class SimplePost {
-    id!: number;
+    id!: string;
     forum!: SimpleForum | null;
     author!: SimpleUser;
+    title!: string;
     content!: string;
     medias!: Media[];
     likeCount!: number;
     commentCount!: number;
     createdAt!: Date;
     updatedAt!: Date;
+    liked?: boolean;
 }

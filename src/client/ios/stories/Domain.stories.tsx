@@ -26,17 +26,17 @@ type Story = StoryObj<typeof meta>;
 
 export const Basic: Story = {
     args: {
-        icon: 'home',
-        label: 'Immobilier',
+        background: 'Culture',
+        label: 'Culture',
+        textColor: '#FFFFFF',
     },
 };
 
-export const Large: Story = {
+export const Another: Story = {
     args: {
-        icon: 'megaphone',
+        background: 'Emploi',
         label: 'Emploi',
-        thickness: 32,
+        thickness: 40,
+        textColor: '#FFFFFF',
     },
 };
-
-
