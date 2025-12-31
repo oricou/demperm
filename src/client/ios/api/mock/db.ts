@@ -13,6 +13,7 @@ import { Settings, DemocracySettings, SocialSettings } from "@/api/types/profile
 import { MyVotes } from "@/api/types/profile/my-votes";
 import { ForYouResults } from "@/api/types/for-you-page/for-you-results";
 import { CreatePost } from "@/api/types/post/create-post";
+import {CommentServerDto} from "@/api/services/post.service";
 
 // ==== Domains ====
 export const domains: Domain[] = [
@@ -193,187 +194,219 @@ export const posts: SimplePost[] = [
     },
 ];
 
-// ==== Commentaires (imbriqués) ====
-export const commentsByPostId: Record<number, Comment[]> = {
-    1001: [
-        {
-            commentId: 5001,
-            author: U(2),
-            content: "Oui, surtout sur les écoles et gymnases déjà bien exposés.",
-            subComments: [
-                {
-                    commentId: 5002,
-                    author: U(1),
-                    content: "On peut mutualiser la production pour les quartiers.",
-                    subComments: [],
-                    createdAt: new Date("2025-10-31T10:15:00Z"),
-                    updatedAt: new Date("2025-10-31T10:15:00Z"),
-                },
-            ],
-            createdAt: new Date("2025-10-31T09:30:00Z"),
-            updatedAt: new Date("2025-10-31T09:30:00Z"),
-        },
-        {
-            commentId: 5003,
-            author: U(4),
-            content: "Attention aux contraintes structurelles des toitures anciennes.",
-            subComments: [],
-            createdAt: new Date("2025-10-31T11:00:00Z"),
-            updatedAt: new Date("2025-10-31T11:00:00Z"),
-        },
-    ],
-    1002: [
-        {
-            commentId: 5010,
-            author: U(6),
-            content: "Un dispositif universel mais dégressif selon les revenus.",
-            subComments: [
-                {
-                    commentId: 5011,
-                    author: U(5),
-                    content: "+1, et bonus pour les passoires thermiques.",
-                    subComments: [],
-                    createdAt: new Date("2025-11-02T12:10:00Z"),
-                    updatedAt: new Date("2025-11-02T12:10:00Z"),
-                },
-            ],
-            createdAt: new Date("2025-11-02T11:20:00Z"),
-            updatedAt: new Date("2025-11-02T11:20:00Z"),
-        },
-    ],
-    1101: [
-        {
-            commentId: 5020,
-            author: U(3),
-            content: "Les trames vertes doivent être opposables aux PLU.",
-            subComments: [
-                {
-                    commentId: 5021,
-                    author: U(4),
-                    content: "Et financées via les projets d’aménagement.",
-                    subComments: [],
-                    createdAt: new Date("2025-10-28T17:10:00Z"),
-                    updatedAt: new Date("2025-10-28T17:10:00Z"),
-                },
-                {
-                    commentId: 5022,
-                    author: U(1),
-                    content: "Mesurer l’efficacité par espèces indicatrices.",
-                    subComments: [],
-                    createdAt: new Date("2025-10-28T17:35:00Z"),
-                    updatedAt: new Date("2025-10-28T17:35:00Z"),
-                },
-            ],
-            createdAt: new Date("2025-10-28T16:55:00Z"),
-            updatedAt: new Date("2025-10-28T16:55:00Z"),
-        },
-    ],
-    2001: [
-        {
-            commentId: 5030,
-            author: U(5),
-            content: "Oui, fléchage minimal pour entretien des monuments.",
-            subComments: [],
-            createdAt: new Date("2025-11-03T09:10:00Z"),
-            updatedAt: new Date("2025-11-03T09:10:00Z"),
-        },
-        {
-            commentId: 5031,
-            author: U(2),
-            content: "Et conditionner à la médiation culturelle locale.",
-            subComments: [
-                {
-                    commentId: 5032,
-                    author: U(6),
-                    content: "Bonne idée pour l’ancrage territorial.",
-                    subComments: [],
-                    createdAt: new Date("2025-11-03T10:05:00Z"),
-                    updatedAt: new Date("2025-11-03T10:05:00Z"),
-                },
-            ],
-            createdAt: new Date("2025-11-03T09:45:00Z"),
-            updatedAt: new Date("2025-11-03T09:45:00Z"),
-        },
-    ],
-    2002: [
-        {
-            commentId: 5040,
-            author: U(1),
-            content: "Indexation sur quotient familial pour éviter les effets d’aubaine.",
-            subComments: [],
-            createdAt: new Date("2025-11-04T16:00:00Z"),
-            updatedAt: new Date("2025-11-04T16:00:00Z"),
-        },
-        {
-            commentId: 5041,
-            author: U(3),
-            content: "Quota de billets solidaires imposé aux organisateurs ?",
-            subComments: [],
-            createdAt: new Date("2025-11-04T16:20:00Z"),
-            updatedAt: new Date("2025-11-04T16:20:00Z"),
-        },
-    ],
-    2101: [
-        {
-            commentId: 5050,
-            author: U(2),
-            content: "Gouvernance indépendante + comité des donateurs non décisionnel.",
-            subComments: [],
-            createdAt: new Date("2025-10-26T19:30:00Z"),
-            updatedAt: new Date("2025-10-26T19:30:00Z"),
-        },
-        {
-            commentId: 5051,
-            author: U(6),
-            content: "Transparence : rapport public annuel par média aidé.",
-            subComments: [],
-            createdAt: new Date("2025-10-26T19:50:00Z"),
-            updatedAt: new Date("2025-10-26T19:50:00Z"),
-        },
-    ],
-    3001: [
-        {
-            commentId: 5060,
-            author: U(4),
-            content: "Attention aux carrefours : priorité à droite peu lisible.",
-            subComments: [
-                {
-                    commentId: 5061,
-                    author: U(5),
-                    content: "Traitements en plateau + marquage renforcé.",
-                    subComments: [],
-                    createdAt: new Date("2025-11-05T08:10:00Z"),
-                    updatedAt: new Date("2025-11-05T08:10:00Z"),
-                },
-            ],
-            createdAt: new Date("2025-11-05T07:55:00Z"),
-            updatedAt: new Date("2025-11-05T07:55:00Z"),
-        },
-    ],
-    3101: [
-        {
-            commentId: 5070,
-            author: U(3),
-            content: "D’abord les nœuds : ils démultiplient l’effet des rames.",
-            subComments: [],
-            createdAt: new Date("2025-11-01T14:00:00Z"),
-            updatedAt: new Date("2025-11-01T14:00:00Z"),
-        },
-        {
-            commentId: 5071,
-            author: U(1),
-            content: "D’accord, mais moderniser le matériel réduit aussi les pannes.",
-            subComments: [],
-            createdAt: new Date("2025-11-01T14:25:00Z"),
-            updatedAt: new Date("2025-11-01T14:25:00Z"),
-        },
-    ],
-};
+// ==== Commentaires ====
+export const commentsByPostId: CommentServerDto[] = [
+    // POST 1001
+    {
+        comment_id: "5001",
+        post_id: "1001",
+        author_id: "2",
+        author_username: "Basile Sens",
+        parent_comment_id: null,
+        content: "Oui, surtout sur les écoles et gymnases déjà bien exposés.",
+        created_at: "2025-10-31T09:30:00Z",
+        updated_at: "2025-10-31T09:30:00Z",
+    },
+    {
+        comment_id: "5002",
+        post_id: "1001",
+        author_id: "1",
+        author_username: "Omri Zakaria Dakka",
+        parent_comment_id: "5001",
+        content: "On peut mutualiser la production pour les quartiers.",
+        created_at: "2025-10-31T10:15:00Z",
+        updated_at: "2025-10-31T10:15:00Z",
+    },
+    {
+        comment_id: "5003",
+        post_id: "1001",
+        author_id: "4",
+        author_username: "Pierre Maunier",
+        parent_comment_id: null,
+        content: "Attention aux contraintes structurelles des toitures anciennes.",
+        created_at: "2025-10-31T11:00:00Z",
+        updated_at: "2025-10-31T11:00:00Z",
+    },
 
-// ==== FullPosts (post + commentaires imbriqués) ====
-export const fullPosts: FullPost[] = (posts || []) .map(p => ({
+    // POST 1002
+    {
+        comment_id: "5010",
+        post_id: "1002",
+        author_id: "6",
+        author_username: "Inès Metiba",
+        parent_comment_id: null,
+        content: "Un dispositif universel mais dégressif selon les revenus.",
+        created_at: "2025-11-02T11:20:00Z",
+        updated_at: "2025-11-02T11:20:00Z",
+    },
+    {
+        comment_id: "5011",
+        post_id: "1002",
+        author_id: "5",
+        author_username: "Titouan Gragnic",
+        parent_comment_id: "5010",
+        content: "+1, et bonus pour les passoires thermiques.",
+        created_at: "2025-11-02T12:10:00Z",
+        updated_at: "2025-11-02T12:10:00Z",
+    },
+
+    // POST 1101
+    {
+        comment_id: "5020",
+        post_id: "1101",
+        author_id: "3",
+        author_username: "Alex Blanco",
+        parent_comment_id: null,
+        content: "Les trames vertes doivent être opposables aux PLU.",
+        created_at: "2025-10-28T16:55:00Z",
+        updated_at: "2025-10-28T16:55:00Z",
+    },
+    {
+        comment_id: "5021",
+        post_id: "1101",
+        author_id: "4",
+        author_username: "Pierre Maunier",
+        parent_comment_id: "5020",
+        content: "Et financées via les projets d’aménagement.",
+        created_at: "2025-10-28T17:10:00Z",
+        updated_at: "2025-10-28T17:10:00Z",
+    },
+    {
+        comment_id: "5022",
+        post_id: "1101",
+        author_id: "1",
+        author_username: "Omri Zakaria Dakka",
+        parent_comment_id: "5020",
+        content: "Mesurer l’efficacité par espèces indicatrices.",
+        created_at: "2025-10-28T17:35:00Z",
+        updated_at: "2025-10-28T17:35:00Z",
+    },
+
+    // POST 2001
+    {
+        comment_id: "5030",
+        post_id: "2001",
+        author_id: "5",
+        author_username: "Titouan Gragnic",
+        parent_comment_id: null,
+        content: "Oui, fléchage minimal pour entretien des monuments.",
+        created_at: "2025-11-03T09:10:00Z",
+        updated_at: "2025-11-03T09:10:00Z",
+    },
+    {
+        comment_id: "5031",
+        post_id: "2001",
+        author_id: "2",
+        author_username: "Basile Sens",
+        parent_comment_id: null,
+        content: "Et conditionner à la médiation culturelle locale.",
+        created_at: "2025-11-03T09:45:00Z",
+        updated_at: "2025-11-03T09:45:00Z",
+    },
+    {
+        comment_id: "5032",
+        post_id: "2001",
+        author_id: "6",
+        author_username: "Inès Metiba",
+        parent_comment_id: "5031",
+        content: "Bonne idée pour l’ancrage territorial.",
+        created_at: "2025-11-03T10:05:00Z",
+        updated_at: "2025-11-03T10:05:00Z",
+    },
+
+    // POST 2002
+    {
+        comment_id: "5040",
+        post_id: "2002",
+        author_id: "1",
+        author_username: "Omri Zakaria Dakka",
+        parent_comment_id: null,
+        content: "Indexation sur quotient familial pour éviter les effets d’aubaine.",
+        created_at: "2025-11-04T16:00:00Z",
+        updated_at: "2025-11-04T16:00:00Z",
+    },
+    {
+        comment_id: "5041",
+        post_id: "2002",
+        author_id: "3",
+        author_username: "Alex Blanco",
+        parent_comment_id: null,
+        content: "Quota de billets solidaires imposé aux organisateurs ?",
+        created_at: "2025-11-04T16:20:00Z",
+        updated_at: "2025-11-04T16:20:00Z",
+    },
+
+    // POST 2101
+    {
+        comment_id: "5050",
+        post_id: "2101",
+        author_id: "2",
+        author_username: "Basile Sens",
+        parent_comment_id: null,
+        content: "Gouvernance indépendante + comité des donateurs non décisionnel.",
+        created_at: "2025-10-26T19:30:00Z",
+        updated_at: "2025-10-26T19:30:00Z",
+    },
+    {
+        comment_id: "5051",
+        post_id: "2101",
+        author_id: "6",
+        author_username: "Inès Metiba",
+        parent_comment_id: null,
+        content: "Transparence : rapport public annuel par média aidé.",
+        created_at: "2025-10-26T19:50:00Z",
+        updated_at: "2025-10-26T19:50:00Z",
+    },
+
+    // POST 3001
+    {
+        comment_id: "5060",
+        post_id: "3001",
+        author_id: "4",
+        author_username: "Pierre Maunier",
+        parent_comment_id: null,
+        content: "Attention aux carrefours : priorité à droite peu lisible.",
+        created_at: "2025-11-05T07:55:00Z",
+        updated_at: "2025-11-05T07:55:00Z",
+    },
+    {
+        comment_id: "5061",
+        post_id: "3001",
+        author_id: "5",
+        author_username: "Titouan Gragnic",
+        parent_comment_id: "5060",
+        content: "Traitements en plateau + marquage renforcé.",
+        created_at: "2025-11-05T08:10:00Z",
+        updated_at: "2025-11-05T08:10:00Z",
+    },
+
+    // POST 3101
+    {
+        comment_id: "5070",
+        post_id: "3101",
+        author_id: "3",
+        author_username: "Alex Blanco",
+        parent_comment_id: null,
+        content: "D’abord les nœuds : ils démultiplient l’effet des rames.",
+        created_at: "2025-11-01T14:00:00Z",
+        updated_at: "2025-11-01T14:00:00Z",
+    },
+    {
+        comment_id: "5071",
+        post_id: "3101",
+        author_id: "1",
+        author_username: "Omri Zakaria Dakka",
+        parent_comment_id: null,
+        content: "D’accord, mais moderniser le matériel réduit aussi les pannes.",
+        created_at: "2025-11-01T14:25:00Z",
+        updated_at: "2025-11-01T14:25:00Z",
+    },
+];
+
+// ==== FullPosts (post + commentaires) ====
+export const fullPosts: FullPost[] = (posts || []).map(p => ({
     post: p,
-    comments: commentsByPostId[p.id] || [],
+    comments: commentsByPostId.filter(c => c.post_id === p.id.toString()),
 } as unknown as FullPost));
 
 // ==== FullForums (forum + posts du forum) ====

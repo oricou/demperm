@@ -7,45 +7,40 @@ import { Colors, Spacing } from '@/constants/theme';
 import { useThemeContext } from '@/contexts/theme-context';
 import { ListItem } from '@/stories/ListItem';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {useCallback, useEffect, useState} from 'react';
+import {FlatList, Image, RefreshControl, StyleSheet, TouchableOpacity, View} from 'react-native';
 
 type TabKey = 'actualites' | 'classement' | 'retenus';
 
 export default function DemocracyRetainedScreen() {
     const [favorites, setFavorites] = useState<SimpleUser[]>([]);
-    const router = useRouter();
-    const { colorScheme } = useThemeContext();
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
+    const handleGetData = () => {
         const favUsers = getFavorites();
         setFavorites(favUsers);
+    };
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        handleGetData();
+        setRefreshing(false);
     }, []);
 
-    const handleTabChange = (tab: TabKey) => {
-        if (tab === 'actualites') {
-            router.push('/democracy/democracyNews');
-        } else if (tab === 'classement') {
-            router.push('/democracy/democracyRanking');
-        }
-    };
+    useEffect(() => {
+        handleGetData();
+    }, []);
+
 
     const handleRemove = (id: number) => {
         setFavorites(favorites.filter(user => user.id !== id));
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}>
+        <View>
             <FlatList
                 data={favorites}
                 keyExtractor={(item) => item.id.toString()}
-                ListHeaderComponent={
-                    <DemocracyHeader 
-                        activeTab="retenus" 
-                        onTabChange={handleTabChange}
-                    />
-                }
-                stickyHeaderIndices={[0]}
                 renderItem={({ item }) => (
                     <ListItem
                         avatarUrl={item.profilePictureUrl}
@@ -63,15 +58,15 @@ export default function DemocracyRetainedScreen() {
                         <ThemedText style={styles.emptyText}>Aucun profil retenu</ThemedText>
                     </View>
                 }
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
             />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
     listContent: {
         paddingHorizontal: Spacing.margin,
         paddingBottom: Spacing.margin,

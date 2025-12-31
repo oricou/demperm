@@ -14,6 +14,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="votes" />
       <Stack.Screen name="create-post" />
+      <Stack.Screen name="edit" />
     </Stack>
   );
 }

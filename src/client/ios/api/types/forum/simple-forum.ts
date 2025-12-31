@@ -1,7 +1,7 @@
 import {Domain} from "@/api/types/forum/domain";
 
 export class SimpleForum {
-    id!: number;
+    id!: string;
     title!: string;
     description!: string;
     domains!: Domain[];

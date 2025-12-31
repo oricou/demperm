@@ -39,6 +39,7 @@ export default function TabLayout() {
   const activeTab = getActiveTab();
 
   const handleTabPress = (key: BottomBarKey) => {
+    if (key === activeTab) return;
     const route = routeMap[key];
     router.push(route as any);
   };

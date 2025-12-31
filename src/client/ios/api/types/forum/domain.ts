@@ -1,5 +1,5 @@
 export class Domain {
-    id!: number;
+    id!: string;
     name!: string;
 }
 

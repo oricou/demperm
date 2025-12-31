@@ -1,27 +1,22 @@
-import { getLeaderboard, getDomains } from '@/api/mock/functions';
+import {getLeaderboard, getDomains, getFeed} from '@/api/mock/functions';
 import { SimpleUser } from '@/api/types/common/simple-user';
 import { Domain } from '@/api/types/forum/domain';
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { DemocracyHeader } from '@/components/democracy-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { useThemeContext } from '@/contexts/theme-context';
 import { Tag } from '@/stories/Tag';
 import { ListItem } from '@/stories/ListItem';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, Image, StyleSheet, View, ScrollView } from 'react-native';
-
-type TabKey = 'actualites' | 'classement' | 'retenus';
+import {useCallback, useEffect, useState} from 'react';
+import {FlatList, Image, StyleSheet, View, ScrollView, RefreshControl} from 'react-native';
 
 export default function DemocracyRankingScreen() {
     const [users, setUsers] = useState<SimpleUser[]>([]);
     const [domains, setDomains] = useState<Domain[]>([]);
     const [selectedDomain, setSelectedDomain] = useState<number | null>(null);
-    const router = useRouter();
     const { colorScheme } = useThemeContext();
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
+    const handleGetData = () => {
         const leaderboard = getLeaderboard();
         // Trier par ordre décroissant de votes
         const sortedUsers = [...leaderboard].sort((a, b) => b.voteCount - a.voteCount);
@@ -29,23 +24,23 @@ export default function DemocracyRankingScreen() {
 
         const domainList = getDomains();
         setDomains(domainList);
-    }, []);
-
-    const handleTabChange = (tab: TabKey) => {
-        if (tab === 'actualites') {
-            router.push('/democracy/democracyNews');
-        } else if (tab === 'retenus') {
-            router.push('/democracy/democracyRetained');
-        }
     };
 
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        handleGetData();
+        setRefreshing(false);
+    }, []);
+
+    useEffect(() => {
+        handleGetData();
+    }, []);
+
+
+
     return (
-        <View style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}>
-            <DemocracyHeader 
-                activeTab="classement" 
-                onTabChange={handleTabChange}
-            />
-            <ScrollView 
+        <View>
+            <ScrollView
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.domainsContainer}
@@ -111,15 +106,15 @@ export default function DemocracyRankingScreen() {
                 )}
                 ItemSeparatorComponent={() => <View style={{ height: Spacing.margin / 2 }} />}
                 contentContainerStyle={styles.listContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
             />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
     domainsContainer: {
         paddingHorizontal: Spacing.margin,
         paddingVertical: Spacing.margin,
