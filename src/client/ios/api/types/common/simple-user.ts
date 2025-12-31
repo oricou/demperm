@@ -1,5 +1,5 @@
 export class SimpleUser {
-    id!: number;
+    id!: string;
     displayName!: string;
     profilePictureUrl!: string;
     bannerUrl!: string;

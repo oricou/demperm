@@ -4,6 +4,6 @@ services:
   dem-perm-web:
     image: ghcr.io/titouangragnic/dem-perm-client-ios:latest
     ports:
-      - "8080:80"
+      - "8081:80"
     container_name: dem-perm-client-ios
     restart: unless-stopped

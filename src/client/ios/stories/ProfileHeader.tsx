@@ -1,10 +1,10 @@
-import React, { memo } from 'react';
-import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
-import { useThemeContext } from '@/contexts/theme-context';
+import CustomImageViewer from '@/components/CustomImageViewer';
 import { Colors, Spacing, Typography } from '@/constants/theme';
+import { useThemeContext } from '@/contexts/theme-context';
+import { Button } from "@/stories/Button";
 import { fontFamily } from '@/stories/utils';
-import {Button} from "@/stories/Button";
-
+import React, { memo } from 'react';
+import { Image, ImageSourcePropType, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export type ProfileHeaderProps = {
     username: string;
@@ -26,6 +26,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = memo(
     ({ username, description, votes, bannerUri, avatarUri, onPressMyVotes, onPressModify, onPressSettings }) => {
         const { colorScheme } = useThemeContext();
         const palette = Colors[colorScheme];
+        const [zoomBanner, setZoomBanner] = React.useState(false);
+        const [zoomAvatar, setZoomAvatar] = React.useState(false);
 
         return (
             <View>
@@ -37,23 +39,38 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = memo(
                 >
                     <View style={styles.bannerWrapper}>
                         {bannerUri ? (
+                            <TouchableOpacity onPress={() => setZoomBanner(true)}>
                             <Image
                                 source={{ uri: bannerUri } as ImageSourcePropType}
                                 style={styles.banner}
                             />
+                            </TouchableOpacity>
                         ) : (
                             <View style={[styles.banner, { backgroundColor: palette.background }]} />
                         )}
                     </View>
-
+                    <CustomImageViewer
+                        images={[{uri: bannerUri ?? ''}]}
+                        initialIndex={0}
+                        visible={zoomBanner}
+                        onClose={() => setZoomBanner(false)}
+                    />
+                    <CustomImageViewer
+                        images={[{uri: avatarUri ?? ''}]}
+                        initialIndex={0}
+                        visible={zoomAvatar}
+                        onClose={() => setZoomAvatar(false)}
+                    />
                     <View style={styles.content}>
                         <View style={styles.topRow}>
                             <View style={[styles.avatarWrapper, { backgroundColor: palette.background }]}>
                                 {avatarUri ? (
+                                    <TouchableOpacity onPress={() => setZoomAvatar(true)}>
                                     <Image
                                         source={{ uri: avatarUri } as ImageSourcePropType}
                                         style={styles.avatar}
                                     />
+                                    </TouchableOpacity>
                                 ) : (
                                     <View
                                         style={[
